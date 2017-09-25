@@ -1,94 +1,68 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-const ShapePoints = require('..')
+const Input = require('..')
 
-let c
+let div, show, down
 
 function test()
 {
-    control(125, 100)
-    draw(ShapePoints.roundedRect(125, 100, 150, 100, 30))
+    const input = new Input(div, { keys: true, chromeDebug: true })
+    input.on('down',
+        function (x, y)
+        {
+            down = true
+            show.style.textDecoration = 'underline'
+            show.innerText = x + ', ' + y
+        })
 
-    control(300, 100)
-    draw(ShapePoints.roundedRect(300, 100, 100, 100, { topLeft: 30, bottomLeft: 60 }))
+    input.on('move',
+        function (x, y)
+        {
+            show.style.textDecoration = down ? 'underline' : 'none'
+            show.innerText = x + ', ' + y
+        })
 
-    control(450, 100)
-    draw(ShapePoints.roundedRect(450, 100, 100, 100, { topRight: 60, bottomRight: 30 }))
+    input.on('up',
+        function (x, y)
+        {
+            down = false
+            show.style.textDecoration = 'none'
+            show.innerText = x + ', ' + y
+        })
 
-    control(600, 100)
-    draw(ShapePoints.rect(600, 100, 100, 75))
-
-    control(700, 50, 750, 125)
-    draw(ShapePoints.line(700, 50, 750, 125, 25))
-
-    control(775, 50, 825, 125)
-    draw(ShapePoints.line(775, 50, 825, 125, { start: 10, end: 50 }))
-
-    control(125, 250)
-    draw(ShapePoints.circle(125, 250, 75))
-
-    control(250, 250, 300, 250, 250, 200, 330, 190)
-    draw(ShapePoints.bezierCurveTo(250, 250, 250, 200, 330, 190, 300, 250), true)
-
-    control(380, 250, 425, 320, 450, 200, 500, 240)
-    draw(ShapePoints.bezierCurveThrough(380, 250, 425, 320, 450, 200, 500, 240), true)
-
-    control(600, 250, 600 + 50, 250, 600, 250 + 75)
-    draw(ShapePoints.ellipse(600, 250, 50, 75))
+    input.on('keydown', (code, special) => { show.style.textDecoration = 'none'; key(code, special) })
+    input.on('keyup', (code, special) => { show.style.textDecoration = 'underline'; key(code, special) })
 }
 
-function control()
+function key(code, special)
 {
-    for (let i = 0; i < arguments.length; i += 2)
+    let text = String.fromCharCode(code) + ' (' + code + ')'
+    if (special.shift)
     {
-        circle(arguments[i], arguments[i + 1], 5, 'green')
+        text += ' [SHIFT]'
     }
-}
-
-function point(x, y)
-{
-    circle(x, y, 3, 'red')
-}
-
-function circle(x, y, radius, color)
-{
-    c.beginPath()
-    c.strokeStyle = color
-    c.arc(x, y, radius, 0, Math.PI * 2)
-    c.stroke()
-}
-
-function draw(points, noClose)
-{
-    c.strokeStyle = 'black'
-    c.beginPath()
-    c.moveTo(points[0], points[1])
-    for (let i = 2; i < points.length; i += 2)
+    if (special.meta)
     {
-        c.lineTo(points[i], points[i + 1])
+        text += ' [META]'
     }
-    if (!noClose)
+    if (special.ctrl)
     {
-        c.closePath()
+        text += ' [CTRL]'
     }
-    c.stroke()
-    for (let i = 0; i < points.length; i += 2)
-    {
-        point(points[i], points[i + 1])
-    }
+    show.innerText = text
 }
 
 window.onload = function ()
 {
-    const canvas = document.getElementById('canvas')
-    canvas.width = 1000
-    canvas.height = 400
-    c = canvas.getContext('2d')
+    div = document.getElementById('test')
+
+    show = document.getElementById('show')
 
     test()
-    require('fork-me-github')('https://github.com/davidfig/shape-points')
+
+    require('fork-me-github')('https://github.com/davidfig/input')
     require('./highlight')()
 }
-},{"..":3,"./highlight":2,"fork-me-github":4}],2:[function(require,module,exports){
+},{"..":3,"./highlight":2,"fork-me-github":5}],2:[function(require,module,exports){
 // shows the code in the demo
 module.exports = function highlight()
 {
@@ -105,342 +79,548 @@ module.exports = function highlight()
 
 // for eslint
 /* globals window, XMLHttpRequest, document */
-},{"highlight.js":6}],3:[function(require,module,exports){
-const Angle = require('yy-angle')
+},{"highlight.js":7}],3:[function(require,module,exports){
+/* Copyright (c) 2017 YOPEY YOPEY LLC */
 
-let _pointsInArc = 5
+const EventEmitter = require('eventemitter3')
 
-/**
- * calculate points for rectangle
- * @param {number} x
- * @param {number} y
- * @param {number} width
- * @param {number} height
- * @returns {array} [x1, y1, x2, y2, ... xn, yn]
- */
-function rect(x, y, width, height)
+module.exports = class Input extends EventEmitter
 {
-    return [
-        x - width / 2, y - height / 2,
-        x + width / 2, y - height / 2,
-        x + width / 2, y + height / 2,
-        x - width / 2, y + height / 2
-    ]
-}
-
-/**
- * calculate points for arc
- * @param {number} x
- * @param {number} y
- * @param {number} start angle (radians)
- * @param {number} end angle (radians)
- * @param {number} radius
- * @returns {array} [x1, y1, x2, y2, ... xn, yn]
- */
-function arc(x, y, start, end, radius)
-{
-    const points = []
-    let angle = start
-    const interval = Angle.differenceAnglesSign(end, start) * Angle.differenceAngles(end, start) / _pointsInArc
-    for (let count = 0; count < _pointsInArc; count++)
+    /**
+     * basic input support for touch, mouse, and keyboard
+     * @param {HTMLElement} object to attach listener to
+     * @param {object} [options]
+     * @param {boolean} [options.keys] turn on key listener
+     * @param {boolean} [options.chromeDebug] ignore chrome debug keys, and force page reload with ctrl/cmd+r
+     */
+    constructor(div, options)
     {
-        points.push(x + radius * Math.cos(angle), y + radius * Math.sin(angle))
-        angle += interval
-    }
-    return points
-}
+        super()
 
-/**
- * calculate points for a rounded rectangle with one corner radius, or 4 separate corner radii
- * @param {number} x
- * @param {number} y
- * @param {number} width
- * @param {number} height
- * @param {number|object} radius
- * @param {number} [radius.topLeft]
- * @param {number} [radius.topRight]
- * @param {number} [radius.bottomLeft]
- * @param {number} [radius.bottomRight]
- * @returns {array} [x1, y1, x2, y2, ... xn, yn]
- */
-function roundedRect(x, y, width, height, radius)
-{
-    if (isNaN(radius))
-    {
-        radius.topLeft = radius.topLeft || 0
-        radius.topRight = radius.topRight || 0
-        radius.bottomLeft = radius.bottomLeft || 0
-        radius.bottomRight = radius.bottomRight || 0
-        const points = [
-            x - width / 2 + radius.topLeft, y - height / 2,
-            x + width / 2 - radius.topRight, y - height / 2
-        ]
-        if (radius.topRight)
+        this.options = options || {}
+
+        this.touches = []
+        this.keys = {}
+        this.input = []
+
+        div.addEventListener('mousedown', this.mouseDown.bind(this))
+        div.addEventListener('mousemove', this.mouseMove.bind(this))
+        div.addEventListener('mouseup', this.mouseUp.bind(this))
+        div.addEventListener('mouseout', this.mouseUp.bind(this))
+
+        div.addEventListener('touchstart', this.touchStart.bind(this))
+        div.addEventListener('touchmove', this.touchMove.bind(this))
+        div.addEventListener('touchend', this.touchEnd.bind(this))
+        div.addEventListener('touchcancel', this.touchEnd.bind(this))
+
+        if (this.options.keys)
         {
-            points.push(...arc(x + width / 2 - radius.topRight, y - height / 2 + radius.topRight, 3 * Math.PI / 2, 0, radius.topRight))
+            this.keysListener()
         }
-        points.push(
-            x + width / 2, y - height / 2 + radius.topRight,
-            x + width / 2, y + height / 2 - radius.bottomRight
-        )
-        if (radius.bottomRight)
-        {
-            points.push(...arc(x + width / 2 - radius.bottomRight, y + height / 2 - radius.bottomRight, 0, Math.PI / 2, radius.bottomRight))
-        }
-        points.push(
-            x + width / 2 - radius.bottomRight, y + height / 2,
-            x - width / 2 + radius.bottomLeft, y + height / 2
-        )
-        if (radius.bottomLeft)
-        {
-            points.push(...arc(x - width / 2 + radius.bottomLeft, y + height / 2 - radius.bottomLeft, Math.PI / 2, Math.PI, radius.bottomLeft))
-        }
-        points.push(
-            x - width / 2, y + height / 2 - radius.bottomLeft,
-            x - width / 2, y - height / 2 + radius.topLeft
-        )
-        if (radius.topLeft)
-        {
-            points.push(...arc(x - width / 2 + radius.topLeft, y - height / 2 + radius.topLeft, Math.PI, 3 * Math.PI / 2, radius.topLeft))
-        }
-        return points
     }
-    return [
-        x - width / 2 + radius, y - height / 2,
-        x + width / 2 - radius, y - height / 2,
-        ...arc(x + width / 2 - radius, y - height / 2 + radius, 3 * Math.PI / 2, 0, radius),
-        x + width / 2, y - height / 2 + radius,
-        x + width / 2, y + height / 2 - radius,
-        ...arc(x + width / 2 - radius, y + height / 2 - radius, 0, Math.PI / 2, radius),
-        x + width / 2 - radius, y + height / 2,
-        x - width / 2 + radius, y + height / 2,
-        ...arc(x - width / 2 + radius, y + height / 2 - radius, Math.PI / 2, Math.PI, radius),
-        x - width / 2, y + height / 2 - radius,
-        x - width / 2, y - height / 2 + radius,
-        ...arc(x - width / 2 + radius, y - height / 2 + radius, Math.PI, 3 * Math.PI / 2, radius),
-    ]
+
+    /**
+     * helper function to find touch from list based on id
+     * @param  {number} id for saved touch
+     * @return {object}
+     */
+    findTouch(id)
+    {
+        for (let i = 0; i < this.touches.length; i++)
+        {
+            if (this.touches[i].identifier === id)
+            {
+                return this.touches[i]
+            }
+        }
+        return null
+    }
+
+    /**
+     * helper function to remove touch from touch list
+     * @private
+     * @param  {object} touch object
+     */
+    removeTouch(id)
+    {
+        for (let i = 0; i < this.touches.length; i++)
+        {
+            if (this.touches[i].identifier === id)
+            {
+                this.touches.splice(i, 1)
+                return
+            }
+        }
+    }
+
+    /**
+     * Handle touch start
+     * @param  {object} e touch event
+     */
+    touchStart(e)
+    {
+        e.preventDefault()
+        const touches = e.changedTouches
+        for (let i = 0; i < touches.length; i++)
+        {
+            const touch = touches[i]
+            const entry = {
+                identifier: touch.identifier,
+                x: touch.clientX,
+                y: touch.clientY,
+                start: Date.now()
+            }
+            this.touches.push(entry)
+            this.handleDown(touch.clientX, touch.clientY)
+        }
+    }
+
+    /**
+     * Handle touch move
+     * @param  {object} e touch event
+     */
+    touchMove(e)
+    {
+        e.preventDefault()
+        for (let i = 0; i < e.changedTouches.length; i++)
+        {
+            const touch = e.changedTouches[i]
+            this.handleMove(touch.clientX, touch.clientY)
+        }
+    }
+
+    /**
+     * Handle touch end
+     * @param  {object} e touch event
+     */
+    touchEnd(e)
+    {
+        e.preventDefault()
+        for (let i = 0; i < e.changedTouches.length; i++)
+        {
+            const touch = e.changedTouches[i]
+            const previous = this.findTouch(touch.identifier)
+            if (previous !== null)
+            {
+                this.removeTouch(touch.identifier)
+                this.handleUp(touch.clientX, touch.clientY)
+            }
+        }
+    }
+
+    /**
+     * Handle mouse down
+     * @param  {object} e touch event
+     */
+    mouseDown(e)
+    {
+        e.preventDefault()
+        const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
+        const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
+        this.handleDown(x, y)
+    }
+
+    /**
+     * Handle mouse move
+     * @param  {object} e touch event
+     */
+    mouseMove(e)
+    {
+        e.preventDefault()
+        const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
+        const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
+        this.handleMove(x, y)
+    }
+
+    /**
+     * Handle mouse up
+     * @param  {object} e touch event
+     */
+    mouseUp(e)
+    {
+        const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
+        const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
+        this.handleUp(x, y)
+    }
+
+    handleDown(x, y)
+    {
+        this.emit('down', x, y)
+    }
+
+    handleUp(x, y)
+    {
+        this.emit('up', x, y)
+    }
+
+    handleMove(x, y)
+    {
+        this.emit('move', x, y)
+    }
+
+    /**
+     * Sets event listener for keyboard
+     */
+    keysListener()
+    {
+        document.addEventListener('keydown', this.keydown.bind(this))
+        document.addEventListener('keyup', this.keyup.bind(this))
+    }
+
+    /**
+     * @param  {object} e
+     */
+    keydown(e)
+    {
+        this.keys.shift = e.shiftKey
+        this.keys.meta = e.metaKey
+        this.keys.ctrl = e.ctrlKey
+        const code = (typeof e.which === 'number') ? e.which : e.keyCode
+        if (this.options.chromeDebug)
+        {
+            // allow chrome to open developer console
+            if (this.keys.meta && code === 73)
+            {
+                return
+            }
+
+            // reload page with meta + r
+            if (code === 82 && this.keys.meta)
+            {
+                window.location.reload()
+                return
+            }
+        }
+        this.emit('keydown', code, this.keys)
+    }
+
+    /**
+     * Handle key up
+     * @param  {object}
+     */
+    keyup(e)
+    {
+        this.keys.shift = e.shiftKey
+        this.keys.meta = e.metaKey
+        this.keys.ctrl = e.ctrlKey
+        const code = (typeof e.which === 'number') ? e.which : e.keyCode
+        this.emit('keyup', code, this.keys)
+    }
+}
+},{"eventemitter3":4}],4:[function(require,module,exports){
+'use strict';
+
+var has = Object.prototype.hasOwnProperty
+  , prefix = '~';
+
+/**
+ * Constructor to create a storage for our `EE` objects.
+ * An `Events` instance is a plain object whose properties are event names.
+ *
+ * @constructor
+ * @api private
+ */
+function Events() {}
+
+//
+// We try to not inherit from `Object.prototype`. In some engines creating an
+// instance in this way is faster than calling `Object.create(null)` directly.
+// If `Object.create(null)` is not supported we prefix the event names with a
+// character to make sure that the built-in object properties are not
+// overridden or used as an attack vector.
+//
+if (Object.create) {
+  Events.prototype = Object.create(null);
+
+  //
+  // This hack is needed because the `__proto__` property is still inherited in
+  // some old browsers like Android 4, iPhone 5.1, Opera 11 and Safari 5.
+  //
+  if (!new Events().__proto__) prefix = false;
 }
 
 /**
- * calculate points for a line with a certain thickness (either one thickness or a starting and ending thickness)
- * @param {number} x1
- * @param {number} y1
- * @param {number} x2
- * @param {number} y2
- * @param {number|object} [thickness]
- * @param {number} thickness.start
- * @param {number} thickness.end
- * @returns {array} [x1, y1, x2, y2, ... xn, yn]
+ * Representation of a single event listener.
+ *
+ * @param {Function} fn The listener function.
+ * @param {Mixed} context The context to invoke the listener with.
+ * @param {Boolean} [once=false] Specify if the listener is a one-time listener.
+ * @constructor
+ * @api private
  */
-function line(x1, y1, x2, y2, thickness)
-{
-    thickness = thickness || 0
-    const angle = Math.atan2(y2 - y1, x2 - x1)
-    const perp = angle - Math.PI / 2
-    const half = isNaN(thickness) ? { start: thickness.start / 2, end: thickness.end / 2 } : { start: thickness / 2, end: thickness / 2 }
-    return [
-        x1 - Math.cos(perp) * half.start, y1 - Math.sin(perp) * half.start,
-        x2 - Math.cos(perp) * half.end, y2 - Math.sin(perp) * half.end,
-        x2 + Math.cos(perp) * half.end, y2 + Math.sin(perp) * half.end,
-        x1 + Math.cos(perp) * half.start, y1 + Math.sin(perp) * half.start
-    ]
+function EE(fn, context, once) {
+  this.fn = fn;
+  this.context = context;
+  this.once = once || false;
 }
 
 /**
- * calculate points for a circle (calculates using pointsInArc * 4)
- * @param {number} x
- * @param {number} y
- * @param {number} radius
- * @returns {array} [x1, y1, x2, y2, ... xn, yn]
+ * Minimal `EventEmitter` interface that is molded against the Node.js
+ * `EventEmitter` interface.
+ *
+ * @constructor
+ * @api public
  */
-function circle(x, y, radius)
-{
-    const points = []
-    const interval = Math.PI * 2 / (_pointsInArc * 4)
-    for (let i = 0; i < Math.PI * 2; i += interval)
-    {
-        points.push(x + Math.cos(i) * radius, y + Math.sin(i) * radius)
-    }
-    return points
+function EventEmitter() {
+  this._events = new Events();
+  this._eventsCount = 0;
 }
 
 /**
- * calculate points for a ellipse (calculates using pointsInArc * 4)
- * @param {number} x
- * @param {number} y
- * @param {number} rx
- * @param {number} ry
- * @returns {array} [x1, y1, x2, y2, ... xn, yn]
+ * Return an array listing the events for which the emitter has registered
+ * listeners.
+ *
+ * @returns {Array}
+ * @api public
  */
-function ellipse(x, y, rx, ry)
-{
-    const points = []
-    const interval = Math.PI * 2 / (_pointsInArc * 4)
-    for (let i = 0; i < Math.PI * 2; i += interval)
-    {
-        points.push(x - rx * Math.sin(i), y - ry * Math.cos(i))
-    }
-    return points
-}
+EventEmitter.prototype.eventNames = function eventNames() {
+  var names = []
+    , events
+    , name;
+
+  if (this._eventsCount === 0) return names;
+
+  for (name in (events = this._events)) {
+    if (has.call(events, name)) names.push(prefix ? name.slice(1) : name);
+  }
+
+  if (Object.getOwnPropertySymbols) {
+    return names.concat(Object.getOwnPropertySymbols(events));
+  }
+
+  return names;
+};
 
 /**
- * Calculate points for a bezier curve with a starting point and two control points
- * from https://stackoverflow.com/a/15399173/1955997
- * @param {number} x1 - starting point (usually a moveTo)
- * @param {number} y1 - starting point
- * @param {number} cp1x - first control point
- * @param {number} cp1y - first control point
- * @param {number} cp2x - second control point
- * @param {number} cp2y - second control point
- * @param {number} x2 - ending point
- * @param {number} y2 - ending point
- * @returns {array} [x1, y1, x2, y2, ... xn, yn]
+ * Return the listeners registered for a given event.
+ *
+ * @param {String|Symbol} event The event name.
+ * @param {Boolean} exists Only check if there are listeners.
+ * @returns {Array|Boolean}
+ * @api public
  */
-function bezierCurveTo(x1, y1, cp1x, cp1y, cp2x, cp2y, x2, y2)
-{
-    const points = []
-    const interval = 1 / _pointsInArc
-    for (let t = 0; t <= 1; t += interval)
-    {
-        const B0_t = Math.pow(1 - t, 3),
-            B1_t = 3 * t * Math.pow(1 - t, 2),
-            B2_t = 3 * Math.pow(t, 2) * (1 - t),
-            B3_t = Math.pow(t, 3)
+EventEmitter.prototype.listeners = function listeners(event, exists) {
+  var evt = prefix ? prefix + event : event
+    , available = this._events[evt];
 
-        points.push(
-            (B0_t * x1) + (B1_t * cp1x) + (B2_t * cp2x) + (B3_t * x2),
-            (B0_t * y1) + (B1_t * cp1y) + (B2_t * cp2y) + (B3_t * y2)
-        )
-    }
-    return points
-}
+  if (exists) return !!available;
+  if (!available) return [];
+  if (available.fn) return [available.fn];
 
+  for (var i = 0, l = available.length, ee = new Array(l); i < l; i++) {
+    ee[i] = available[i].fn;
+  }
+
+  return ee;
+};
 
 /**
- * Calculate points for smooth bezier curves passing through a series of points
- * based on https://www.particleincell.com/2012/bezier-splines/
- * @param {number} x1 - starting point
- * @param {number} y1
- * @param {number} [x2]
- * @param {number} [y2]
- * ...
- * @param {number} xn - ending point
- * @param {number} yn
- * @returns {array} [x1, y1, x2, y2, ... xn, yn]
+ * Calls each of the listeners registered for a given event.
+ *
+ * @param {String|Symbol} event The event name.
+ * @returns {Boolean} `true` if the event had listeners, else `false`.
+ * @api public
  */
-function bezierCurveThrough()
-{
-    function updateCoordinate(K)
-    {
-        const p1 = []
-        const p2 = []
-        let n = K.length - 1
+EventEmitter.prototype.emit = function emit(event, a1, a2, a3, a4, a5) {
+  var evt = prefix ? prefix + event : event;
 
-        /* rhs vector */
-        const a = []
-        const b = []
-        const c = []
-        const r = []
+  if (!this._events[evt]) return false;
 
-        /* left most segment */
-        a[0] = 0
-        b[0] = 2
-        c[0] = 1
-        r[0] = K[0] + 2 * K[1]
+  var listeners = this._events[evt]
+    , len = arguments.length
+    , args
+    , i;
 
-        /* internal segments */
-        for (let i = 1; i < n - 1; i++)
-        {
-            a[i] = 1
-            b[i] = 4
-            c[i] = 1
-            r[i] = 4 * K[i] + 2 * K[i + 1]
-        }
+  if (listeners.fn) {
+    if (listeners.once) this.removeListener(event, listeners.fn, undefined, true);
 
-        /* right segment */
-        a[n - 1] = 2
-        b[n - 1] = 7
-        c[n - 1] = 0
-        r[n - 1] = 8 * K[n - 1] + K[n]
-
-        /* solves Ax=b with the Thomas algorithm (from Wikipedia) */
-        for (let i = 1; i < n; i++)
-        {
-            const m = a[i] / b[i - 1]
-            b[i] -= m * c[i - 1]
-            r[i] -= m * r[i - 1]
-        }
-
-        p1[n - 1] = r[n - 1] / b[n - 1]
-        for (let i = n - 2; i >= 0; --i)
-            p1[i] = (r[i] - c[i] * p1[i + 1]) / b[i]
-
-        /* we have p1, now compute p2 */
-        for (let i = 0; i < n - 1; i++)
-            p2[i] = 2 * K[i + 1] - p1[i + 1]
-
-        p2[n - 1] = 0.5 * (K[n] + p1[n - 1])
-        return [p1, p2]
+    switch (len) {
+      case 1: return listeners.fn.call(listeners.context), true;
+      case 2: return listeners.fn.call(listeners.context, a1), true;
+      case 3: return listeners.fn.call(listeners.context, a1, a2), true;
+      case 4: return listeners.fn.call(listeners.context, a1, a2, a3), true;
+      case 5: return listeners.fn.call(listeners.context, a1, a2, a3, a4), true;
+      case 6: return listeners.fn.call(listeners.context, a1, a2, a3, a4, a5), true;
     }
 
-    const xs = [], ys = []
-    for (let i = 0; i < arguments.length; i += 2)
-    {
-        xs.push(arguments[i])
-        ys.push(arguments[i + 1])
+    for (i = 1, args = new Array(len -1); i < len; i++) {
+      args[i - 1] = arguments[i];
     }
 
-    // not enough points
-    if (arguments.length <= 4)
-    {
-        return
+    listeners.fn.apply(listeners.context, args);
+  } else {
+    var length = listeners.length
+      , j;
+
+    for (i = 0; i < length; i++) {
+      if (listeners[i].once) this.removeListener(event, listeners[i].fn, undefined, true);
+
+      switch (len) {
+        case 1: listeners[i].fn.call(listeners[i].context); break;
+        case 2: listeners[i].fn.call(listeners[i].context, a1); break;
+        case 3: listeners[i].fn.call(listeners[i].context, a1, a2); break;
+        case 4: listeners[i].fn.call(listeners[i].context, a1, a2, a3); break;
+        default:
+          if (!args) for (j = 1, args = new Array(len -1); j < len; j++) {
+            args[j - 1] = arguments[j];
+          }
+
+          listeners[i].fn.apply(listeners[i].context, args);
+      }
+    }
+  }
+
+  return true;
+};
+
+/**
+ * Add a listener for a given event.
+ *
+ * @param {String|Symbol} event The event name.
+ * @param {Function} fn The listener function.
+ * @param {Mixed} [context=this] The context to invoke the listener with.
+ * @returns {EventEmitter} `this`.
+ * @api public
+ */
+EventEmitter.prototype.on = function on(event, fn, context) {
+  var listener = new EE(fn, context || this)
+    , evt = prefix ? prefix + event : event;
+
+  if (!this._events[evt]) this._events[evt] = listener, this._eventsCount++;
+  else if (!this._events[evt].fn) this._events[evt].push(listener);
+  else this._events[evt] = [this._events[evt], listener];
+
+  return this;
+};
+
+/**
+ * Add a one-time listener for a given event.
+ *
+ * @param {String|Symbol} event The event name.
+ * @param {Function} fn The listener function.
+ * @param {Mixed} [context=this] The context to invoke the listener with.
+ * @returns {EventEmitter} `this`.
+ * @api public
+ */
+EventEmitter.prototype.once = function once(event, fn, context) {
+  var listener = new EE(fn, context || this, true)
+    , evt = prefix ? prefix + event : event;
+
+  if (!this._events[evt]) this._events[evt] = listener, this._eventsCount++;
+  else if (!this._events[evt].fn) this._events[evt].push(listener);
+  else this._events[evt] = [this._events[evt], listener];
+
+  return this;
+};
+
+/**
+ * Remove the listeners of a given event.
+ *
+ * @param {String|Symbol} event The event name.
+ * @param {Function} fn Only remove the listeners that match this function.
+ * @param {Mixed} context Only remove the listeners that have this context.
+ * @param {Boolean} once Only remove one-time listeners.
+ * @returns {EventEmitter} `this`.
+ * @api public
+ */
+EventEmitter.prototype.removeListener = function removeListener(event, fn, context, once) {
+  var evt = prefix ? prefix + event : event;
+
+  if (!this._events[evt]) return this;
+  if (!fn) {
+    if (--this._eventsCount === 0) this._events = new Events();
+    else delete this._events[evt];
+    return this;
+  }
+
+  var listeners = this._events[evt];
+
+  if (listeners.fn) {
+    if (
+         listeners.fn === fn
+      && (!once || listeners.once)
+      && (!context || listeners.context === context)
+    ) {
+      if (--this._eventsCount === 0) this._events = new Events();
+      else delete this._events[evt];
+    }
+  } else {
+    for (var i = 0, events = [], length = listeners.length; i < length; i++) {
+      if (
+           listeners[i].fn !== fn
+        || (once && !listeners[i].once)
+        || (context && listeners[i].context !== context)
+      ) {
+        events.push(listeners[i]);
+      }
     }
 
-    // two points creates a line
-    if (arguments.length === 4)
-    {
-        return [arguments[0], arguments[1], arguments[2], arguments[3]]
-    }
+    //
+    // Reset the array, or remove it completely if we have no more listeners.
+    //
+    if (events.length) this._events[evt] = events.length === 1 ? events[0] : events;
+    else if (--this._eventsCount === 0) this._events = new Events();
+    else delete this._events[evt];
+  }
 
-    const results = []
-    const xResults = updateCoordinate(xs)
-    const yResults = updateCoordinate(ys)
-    const x = arguments[0]
-    const y = arguments[1]
-    results.push(x, y)
-    let lastX = x, lastY = y
-    for (let i = 0; i < arguments.length - 1; i += 2)
-    {
-        const index = i / 2
-        const x2 = arguments[i + 2]
-        const y2 = arguments[i + 3]
-        results.push(...bezierCurveTo(lastX, lastY, xResults[0][index], yResults[0][index], xResults[1][index], yResults[1][index], x2, y2))
-        lastX = x2
-        lastY = y2
+  return this;
+};
+
+/**
+ * Remove all listeners, or those of the specified event.
+ *
+ * @param {String|Symbol} [event] The event name.
+ * @returns {EventEmitter} `this`.
+ * @api public
+ */
+EventEmitter.prototype.removeAllListeners = function removeAllListeners(event) {
+  var evt;
+
+  if (event) {
+    evt = prefix ? prefix + event : event;
+    if (this._events[evt]) {
+      if (--this._eventsCount === 0) this._events = new Events();
+      else delete this._events[evt];
     }
-    return results
+  } else {
+    this._events = new Events();
+    this._eventsCount = 0;
+  }
+
+  return this;
+};
+
+//
+// Alias methods names because people roll like that.
+//
+EventEmitter.prototype.off = EventEmitter.prototype.removeListener;
+EventEmitter.prototype.addListener = EventEmitter.prototype.on;
+
+//
+// This function doesn't apply anymore.
+//
+EventEmitter.prototype.setMaxListeners = function setMaxListeners() {
+  return this;
+};
+
+//
+// Expose the prefix.
+//
+EventEmitter.prefixed = prefix;
+
+//
+// Allow `EventEmitter` to be imported as module namespace.
+//
+EventEmitter.EventEmitter = EventEmitter;
+
+//
+// Expose the module.
+//
+if ('undefined' !== typeof module) {
+  module.exports = EventEmitter;
 }
 
-module.exports = {
-    arc,
-    rect,
-    roundedRect,
-    line,
-    circle,
-    ellipse,
-    bezierCurveTo,
-    bezierCurveThrough,
-    get pointsInArc()
-    {
-        return _pointsInArc
-    },
-    set pointsInArc(value)
-    {
-        _pointsInArc = value
-    }
-}
-
-},{"yy-angle":183}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 // Programatically add fork me on github ribbon from javascript without making changes to CSS, HTML, or adding image files
 // by David Figatner
 // copyright 2017 YOPEY YOPEY LLC
@@ -594,7 +774,7 @@ module.exports = function forkMe(url, options)
     sheet.insertRule('.' + a.className + '::before' + before + '}')
     sheet.insertRule('.' + a.className + '::after' + after + '}')
 }
-},{}],5:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 /*
 Syntax highlighting with language autodetection.
 https://highlightjs.org/
@@ -1412,7 +1592,7 @@ https://highlightjs.org/
   return hljs;
 }));
 
-},{}],6:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 var hljs = require('./highlight');
 
 hljs.registerLanguage('1c', require('./languages/1c'));
@@ -1593,7 +1773,7 @@ hljs.registerLanguage('xquery', require('./languages/xquery'));
 hljs.registerLanguage('zephir', require('./languages/zephir'));
 
 module.exports = hljs;
-},{"./highlight":5,"./languages/1c":7,"./languages/abnf":8,"./languages/accesslog":9,"./languages/actionscript":10,"./languages/ada":11,"./languages/apache":12,"./languages/applescript":13,"./languages/arduino":14,"./languages/armasm":15,"./languages/asciidoc":16,"./languages/aspectj":17,"./languages/autohotkey":18,"./languages/autoit":19,"./languages/avrasm":20,"./languages/awk":21,"./languages/axapta":22,"./languages/bash":23,"./languages/basic":24,"./languages/bnf":25,"./languages/brainfuck":26,"./languages/cal":27,"./languages/capnproto":28,"./languages/ceylon":29,"./languages/clean":30,"./languages/clojure":32,"./languages/clojure-repl":31,"./languages/cmake":33,"./languages/coffeescript":34,"./languages/coq":35,"./languages/cos":36,"./languages/cpp":37,"./languages/crmsh":38,"./languages/crystal":39,"./languages/cs":40,"./languages/csp":41,"./languages/css":42,"./languages/d":43,"./languages/dart":44,"./languages/delphi":45,"./languages/diff":46,"./languages/django":47,"./languages/dns":48,"./languages/dockerfile":49,"./languages/dos":50,"./languages/dsconfig":51,"./languages/dts":52,"./languages/dust":53,"./languages/ebnf":54,"./languages/elixir":55,"./languages/elm":56,"./languages/erb":57,"./languages/erlang":59,"./languages/erlang-repl":58,"./languages/excel":60,"./languages/fix":61,"./languages/flix":62,"./languages/fortran":63,"./languages/fsharp":64,"./languages/gams":65,"./languages/gauss":66,"./languages/gcode":67,"./languages/gherkin":68,"./languages/glsl":69,"./languages/go":70,"./languages/golo":71,"./languages/gradle":72,"./languages/groovy":73,"./languages/haml":74,"./languages/handlebars":75,"./languages/haskell":76,"./languages/haxe":77,"./languages/hsp":78,"./languages/htmlbars":79,"./languages/http":80,"./languages/hy":81,"./languages/inform7":82,"./languages/ini":83,"./languages/irpf90":84,"./languages/java":85,"./languages/javascript":86,"./languages/jboss-cli":87,"./languages/json":88,"./languages/julia":90,"./languages/julia-repl":89,"./languages/kotlin":91,"./languages/lasso":92,"./languages/ldif":93,"./languages/leaf":94,"./languages/less":95,"./languages/lisp":96,"./languages/livecodeserver":97,"./languages/livescript":98,"./languages/llvm":99,"./languages/lsl":100,"./languages/lua":101,"./languages/makefile":102,"./languages/markdown":103,"./languages/mathematica":104,"./languages/matlab":105,"./languages/maxima":106,"./languages/mel":107,"./languages/mercury":108,"./languages/mipsasm":109,"./languages/mizar":110,"./languages/mojolicious":111,"./languages/monkey":112,"./languages/moonscript":113,"./languages/n1ql":114,"./languages/nginx":115,"./languages/nimrod":116,"./languages/nix":117,"./languages/nsis":118,"./languages/objectivec":119,"./languages/ocaml":120,"./languages/openscad":121,"./languages/oxygene":122,"./languages/parser3":123,"./languages/perl":124,"./languages/pf":125,"./languages/php":126,"./languages/pony":127,"./languages/powershell":128,"./languages/processing":129,"./languages/profile":130,"./languages/prolog":131,"./languages/protobuf":132,"./languages/puppet":133,"./languages/purebasic":134,"./languages/python":135,"./languages/q":136,"./languages/qml":137,"./languages/r":138,"./languages/rib":139,"./languages/roboconf":140,"./languages/routeros":141,"./languages/rsl":142,"./languages/ruby":143,"./languages/ruleslanguage":144,"./languages/rust":145,"./languages/scala":146,"./languages/scheme":147,"./languages/scilab":148,"./languages/scss":149,"./languages/shell":150,"./languages/smali":151,"./languages/smalltalk":152,"./languages/sml":153,"./languages/sqf":154,"./languages/sql":155,"./languages/stan":156,"./languages/stata":157,"./languages/step21":158,"./languages/stylus":159,"./languages/subunit":160,"./languages/swift":161,"./languages/taggerscript":162,"./languages/tap":163,"./languages/tcl":164,"./languages/tex":165,"./languages/thrift":166,"./languages/tp":167,"./languages/twig":168,"./languages/typescript":169,"./languages/vala":170,"./languages/vbnet":171,"./languages/vbscript":173,"./languages/vbscript-html":172,"./languages/verilog":174,"./languages/vhdl":175,"./languages/vim":176,"./languages/x86asm":177,"./languages/xl":178,"./languages/xml":179,"./languages/xquery":180,"./languages/yaml":181,"./languages/zephir":182}],7:[function(require,module,exports){
+},{"./highlight":6,"./languages/1c":8,"./languages/abnf":9,"./languages/accesslog":10,"./languages/actionscript":11,"./languages/ada":12,"./languages/apache":13,"./languages/applescript":14,"./languages/arduino":15,"./languages/armasm":16,"./languages/asciidoc":17,"./languages/aspectj":18,"./languages/autohotkey":19,"./languages/autoit":20,"./languages/avrasm":21,"./languages/awk":22,"./languages/axapta":23,"./languages/bash":24,"./languages/basic":25,"./languages/bnf":26,"./languages/brainfuck":27,"./languages/cal":28,"./languages/capnproto":29,"./languages/ceylon":30,"./languages/clean":31,"./languages/clojure":33,"./languages/clojure-repl":32,"./languages/cmake":34,"./languages/coffeescript":35,"./languages/coq":36,"./languages/cos":37,"./languages/cpp":38,"./languages/crmsh":39,"./languages/crystal":40,"./languages/cs":41,"./languages/csp":42,"./languages/css":43,"./languages/d":44,"./languages/dart":45,"./languages/delphi":46,"./languages/diff":47,"./languages/django":48,"./languages/dns":49,"./languages/dockerfile":50,"./languages/dos":51,"./languages/dsconfig":52,"./languages/dts":53,"./languages/dust":54,"./languages/ebnf":55,"./languages/elixir":56,"./languages/elm":57,"./languages/erb":58,"./languages/erlang":60,"./languages/erlang-repl":59,"./languages/excel":61,"./languages/fix":62,"./languages/flix":63,"./languages/fortran":64,"./languages/fsharp":65,"./languages/gams":66,"./languages/gauss":67,"./languages/gcode":68,"./languages/gherkin":69,"./languages/glsl":70,"./languages/go":71,"./languages/golo":72,"./languages/gradle":73,"./languages/groovy":74,"./languages/haml":75,"./languages/handlebars":76,"./languages/haskell":77,"./languages/haxe":78,"./languages/hsp":79,"./languages/htmlbars":80,"./languages/http":81,"./languages/hy":82,"./languages/inform7":83,"./languages/ini":84,"./languages/irpf90":85,"./languages/java":86,"./languages/javascript":87,"./languages/jboss-cli":88,"./languages/json":89,"./languages/julia":91,"./languages/julia-repl":90,"./languages/kotlin":92,"./languages/lasso":93,"./languages/ldif":94,"./languages/leaf":95,"./languages/less":96,"./languages/lisp":97,"./languages/livecodeserver":98,"./languages/livescript":99,"./languages/llvm":100,"./languages/lsl":101,"./languages/lua":102,"./languages/makefile":103,"./languages/markdown":104,"./languages/mathematica":105,"./languages/matlab":106,"./languages/maxima":107,"./languages/mel":108,"./languages/mercury":109,"./languages/mipsasm":110,"./languages/mizar":111,"./languages/mojolicious":112,"./languages/monkey":113,"./languages/moonscript":114,"./languages/n1ql":115,"./languages/nginx":116,"./languages/nimrod":117,"./languages/nix":118,"./languages/nsis":119,"./languages/objectivec":120,"./languages/ocaml":121,"./languages/openscad":122,"./languages/oxygene":123,"./languages/parser3":124,"./languages/perl":125,"./languages/pf":126,"./languages/php":127,"./languages/pony":128,"./languages/powershell":129,"./languages/processing":130,"./languages/profile":131,"./languages/prolog":132,"./languages/protobuf":133,"./languages/puppet":134,"./languages/purebasic":135,"./languages/python":136,"./languages/q":137,"./languages/qml":138,"./languages/r":139,"./languages/rib":140,"./languages/roboconf":141,"./languages/routeros":142,"./languages/rsl":143,"./languages/ruby":144,"./languages/ruleslanguage":145,"./languages/rust":146,"./languages/scala":147,"./languages/scheme":148,"./languages/scilab":149,"./languages/scss":150,"./languages/shell":151,"./languages/smali":152,"./languages/smalltalk":153,"./languages/sml":154,"./languages/sqf":155,"./languages/sql":156,"./languages/stan":157,"./languages/stata":158,"./languages/step21":159,"./languages/stylus":160,"./languages/subunit":161,"./languages/swift":162,"./languages/taggerscript":163,"./languages/tap":164,"./languages/tcl":165,"./languages/tex":166,"./languages/thrift":167,"./languages/tp":168,"./languages/twig":169,"./languages/typescript":170,"./languages/vala":171,"./languages/vbnet":172,"./languages/vbscript":174,"./languages/vbscript-html":173,"./languages/verilog":175,"./languages/vhdl":176,"./languages/vim":177,"./languages/x86asm":178,"./languages/xl":179,"./languages/xml":180,"./languages/xquery":181,"./languages/yaml":182,"./languages/zephir":183}],8:[function(require,module,exports){
 module.exports = function(hljs){
 
   // общий паттерн для определения идентификаторов
@@ -2103,7 +2283,7 @@ module.exports = function(hljs){
     ]  
   }
 };
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 module.exports = function(hljs) {
     var regexes = {
         ruleDeclaration: "^[a-zA-Z][a-zA-Z0-9-]*",
@@ -2174,7 +2354,7 @@ module.exports = function(hljs) {
       ]
     };
 };
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     contains: [
@@ -2212,7 +2392,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 module.exports = function(hljs) {
   var IDENT_RE = '[a-zA-Z_$][a-zA-Z0-9_$]*';
   var IDENT_FUNC_RETURN_TYPE_RE = '([*]|[a-zA-Z_$][a-zA-Z0-9_$]*)';
@@ -2286,7 +2466,7 @@ module.exports = function(hljs) {
     illegal: /#/
   };
 };
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 module.exports = // We try to support full Ada2012
 //
 // We highlight all appearances of types, keywords, literals (string, char, number, bool)
@@ -2459,7 +2639,7 @@ function(hljs) {
         ]
     };
 };
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 module.exports = function(hljs) {
   var NUMBER = {className: 'number', begin: '[\\$%]\\d+'};
   return {
@@ -2505,7 +2685,7 @@ module.exports = function(hljs) {
     illegal: /\S/
   };
 };
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 module.exports = function(hljs) {
   var STRING = hljs.inherit(hljs.QUOTE_STRING_MODE, {illegal: ''});
   var PARAMS = {
@@ -2591,7 +2771,7 @@ module.exports = function(hljs) {
     illegal: '//|->|=>|\\[\\['
   };
 };
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 module.exports = function(hljs) {
   var CPP = hljs.getLanguage('cpp').exports;
 	return {
@@ -2691,7 +2871,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 module.exports = function(hljs) {
     //local labels: %?[FB]?[AT]?\d{1,2}\w+
   return {
@@ -2783,7 +2963,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['adoc'],
@@ -2971,7 +3151,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 module.exports = function (hljs) {
   var KEYWORDS =
     'false synchronized int abstract float private char boolean static null if const ' +
@@ -3116,7 +3296,7 @@ module.exports = function (hljs) {
     ]
   };
 };
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 module.exports = function(hljs) {
   var BACKTICK_ESCAPE = {
     begin: '`[\\s\\S]'
@@ -3175,7 +3355,7 @@ module.exports = function(hljs) {
     ]
   }
 };
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 module.exports = function(hljs) {
     var KEYWORDS = 'ByRef Case Const ContinueCase ContinueLoop ' +
         'Default Dim Do Else ElseIf EndFunc EndIf EndSelect ' +
@@ -3311,7 +3491,7 @@ module.exports = function(hljs) {
         ]
     }
 };
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     case_insensitive: true,
@@ -3373,7 +3553,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],21:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 module.exports = function(hljs) {
   var VARIABLE = {
     className: 'variable',
@@ -3426,7 +3606,7 @@ module.exports = function(hljs) {
     ]
   }
 };
-},{}],22:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     keywords: 'false int abstract private char boolean static null if for true ' +
@@ -3457,7 +3637,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 module.exports = function(hljs) {
   var VAR = {
     className: 'variable',
@@ -3532,7 +3712,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],24:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     case_insensitive: true,
@@ -3583,7 +3763,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 module.exports = function(hljs){
   return {
     contains: [
@@ -3612,7 +3792,7 @@ module.exports = function(hljs){
     ]
   };
 };
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 module.exports = function(hljs){
   var LITERAL = {
     className: 'literal',
@@ -3649,7 +3829,7 @@ module.exports = function(hljs){
     ]
   };
 };
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS =
     'div mod in and or not xor asserterror begin case do downto else end exit for if of repeat then to ' +
@@ -3729,7 +3909,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],28:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['capnp'],
@@ -3778,7 +3958,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 module.exports = function(hljs) {
   // 2.3. Identifiers and keywords
   var KEYWORDS =
@@ -3845,7 +4025,7 @@ module.exports = function(hljs) {
     ].concat(EXPRESSIONS)
   };
 };
-},{}],30:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['clean','icl','dcl'],
@@ -3870,7 +4050,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     contains: [
@@ -3885,7 +4065,7 @@ module.exports = function(hljs) {
     ]
   }
 };
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 module.exports = function(hljs) {
   var keywords = {
     'builtin-name':
@@ -3981,7 +4161,7 @@ module.exports = function(hljs) {
     contains: [LIST, STRING, HINT, HINT_COL, COMMENT, KEY, COLLECTION, NUMBER, LITERAL]
   }
 };
-},{}],33:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['cmake.in'],
@@ -4019,7 +4199,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS = {
     keyword:
@@ -4165,7 +4345,7 @@ module.exports = function(hljs) {
     ])
   };
 };
-},{}],35:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     keywords: {
@@ -4232,7 +4412,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],36:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 module.exports = function cos (hljs) {
 
   var STRINGS = {
@@ -4356,7 +4536,7 @@ module.exports = function cos (hljs) {
     ]
   };
 };
-},{}],37:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 module.exports = function(hljs) {
   var CPP_PRIMITIVE_TYPES = {
     className: 'keyword',
@@ -4531,7 +4711,7 @@ module.exports = function(hljs) {
     }
   };
 };
-},{}],38:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 module.exports = function(hljs) {
   var RESOURCES = 'primitive rsc_template';
 
@@ -4625,7 +4805,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],39:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 module.exports = function(hljs) {
   var NUM_SUFFIX = '(_[uif](8|16|32|64))?';
   var CRYSTAL_IDENT_RE = '[a-zA-Z_]\\w*[!?=]?';
@@ -4819,7 +4999,7 @@ module.exports = function(hljs) {
     contains: CRYSTAL_DEFAULT_CONTAINS
   };
 };
-},{}],40:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS = {
     keyword:
@@ -4996,7 +5176,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],41:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     case_insensitive: false,
@@ -5018,7 +5198,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],42:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 module.exports = function(hljs) {
   var IDENT_RE = '[a-zA-Z-][a-zA-Z0-9_-]*';
   var RULE = {
@@ -5123,7 +5303,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],43:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 module.exports = /**
  * Known issues:
  *
@@ -5381,7 +5561,7 @@ function(hljs) {
     ]
   };
 };
-},{}],44:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 module.exports = function (hljs) {
   var SUBST = {
     className: 'subst',
@@ -5482,7 +5662,7 @@ module.exports = function (hljs) {
     ]
   }
 };
-},{}],45:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS =
     'exports register file shl array record property for mod while set ally label uses raise not ' +
@@ -5551,7 +5731,7 @@ module.exports = function(hljs) {
     ].concat(COMMENT_MODES)
   };
 };
-},{}],46:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['patch'],
@@ -5591,7 +5771,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],47:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 module.exports = function(hljs) {
   var FILTER = {
     begin: /\|[A-Za-z]+:?/,
@@ -5655,7 +5835,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],48:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['bind', 'zone'],
@@ -5684,7 +5864,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],49:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['docker'],
@@ -5706,7 +5886,7 @@ module.exports = function(hljs) {
     illegal: '</'
   }
 };
-},{}],50:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 module.exports = function(hljs) {
   var COMMENT = hljs.COMMENT(
     /^\s*@?rem\b/, /$/,
@@ -5758,7 +5938,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],51:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 module.exports = function(hljs) {
   var QUOTED_PROPERTY = {
     className: 'string',
@@ -5805,7 +5985,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],52:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 module.exports = function(hljs) {
   var STRINGS = {
     className: 'string',
@@ -5929,7 +6109,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],53:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 module.exports = function(hljs) {
   var EXPRESSION_KEYWORDS = 'if eq ne lt lte gt gte select default math sep';
   return {
@@ -5961,7 +6141,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],54:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 module.exports = function(hljs) {
     var commentMode = hljs.COMMENT(/\(\*/, /\*\)/);
 
@@ -5994,7 +6174,7 @@ module.exports = function(hljs) {
         ]
     };
 };
-},{}],55:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 module.exports = function(hljs) {
   var ELIXIR_IDENT_RE = '[a-zA-Z_][a-zA-Z0-9_]*(\\!|\\?)?';
   var ELIXIR_METHOD_RE = '[a-zA-Z_]\\w*[!?=]?|[-+~]\\@|<<|>>|=~|===?|<=>|[<>]=?|\\*\\*|[-/+%^&*~`|]|\\[\\]=?';
@@ -6091,7 +6271,7 @@ module.exports = function(hljs) {
     contains: ELIXIR_DEFAULT_CONTAINS
   };
 };
-},{}],56:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 module.exports = function(hljs) {
   var COMMENT = {
     variants: [
@@ -6175,7 +6355,7 @@ module.exports = function(hljs) {
     illegal: /;/
   };
 };
-},{}],57:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     subLanguage: 'xml',
@@ -6190,7 +6370,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],58:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     keywords: {
@@ -6236,7 +6416,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],59:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 module.exports = function(hljs) {
   var BASIC_ATOM_RE = '[a-z\'][a-zA-Z0-9_\']*';
   var FUNCTION_NAME_RE = '(' + BASIC_ATOM_RE + ':' + BASIC_ATOM_RE + '|' + BASIC_ATOM_RE + ')';
@@ -6382,7 +6562,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],60:[function(require,module,exports){
+},{}],61:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['xlsx', 'xls'],
@@ -6430,7 +6610,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],61:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     contains: [
@@ -6459,7 +6639,7 @@ module.exports = function(hljs) {
     case_insensitive: true
   };
 };
-},{}],62:[function(require,module,exports){
+},{}],63:[function(require,module,exports){
 module.exports = function (hljs) {
 
     var CHAR = {
@@ -6504,7 +6684,7 @@ module.exports = function (hljs) {
         ]
     };
 };
-},{}],63:[function(require,module,exports){
+},{}],64:[function(require,module,exports){
 module.exports = function(hljs) {
   var PARAMS = {
     className: 'params',
@@ -6575,7 +6755,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],64:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
 module.exports = function(hljs) {
   var TYPEPARAM = {
     begin: '<', end: '>',
@@ -6634,7 +6814,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],65:[function(require,module,exports){
+},{}],66:[function(require,module,exports){
 module.exports = function (hljs) {
   var KEYWORDS = {
     'keyword':
@@ -6788,7 +6968,7 @@ module.exports = function (hljs) {
     ]
   };
 };
-},{}],66:[function(require,module,exports){
+},{}],67:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS = {
     keyword: 'and bool break call callexe checkinterrupt clear clearg closeall cls comlog compile ' +
@@ -7012,7 +7192,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],67:[function(require,module,exports){
+},{}],68:[function(require,module,exports){
 module.exports = function(hljs) {
     var GCODE_IDENT_RE = '[A-Z_][A-Z0-9_.]*';
     var GCODE_CLOSE_RE = '\\%';
@@ -7079,7 +7259,7 @@ module.exports = function(hljs) {
         ].concat(GCODE_CODE)
     };
 };
-},{}],68:[function(require,module,exports){
+},{}],69:[function(require,module,exports){
 module.exports = function (hljs) {
   return {
     aliases: ['feature'],
@@ -7116,7 +7296,7 @@ module.exports = function (hljs) {
     ]
   };
 };
-},{}],69:[function(require,module,exports){
+},{}],70:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     keywords: {
@@ -7233,7 +7413,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],70:[function(require,module,exports){
+},{}],71:[function(require,module,exports){
 module.exports = function(hljs) {
   var GO_KEYWORDS = {
     keyword:
@@ -7287,7 +7467,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],71:[function(require,module,exports){
+},{}],72:[function(require,module,exports){
 module.exports = function(hljs) {
     return {
       keywords: {
@@ -7310,7 +7490,7 @@ module.exports = function(hljs) {
       ]
     }
 };
-},{}],72:[function(require,module,exports){
+},{}],73:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     case_insensitive: true,
@@ -7345,7 +7525,7 @@ module.exports = function(hljs) {
     ]
   }
 };
-},{}],73:[function(require,module,exports){
+},{}],74:[function(require,module,exports){
 module.exports = function(hljs) {
     return {
         keywords: {
@@ -7439,7 +7619,7 @@ module.exports = function(hljs) {
         illegal: /#|<\//
     }
 };
-},{}],74:[function(require,module,exports){
+},{}],75:[function(require,module,exports){
 module.exports = // TODO support filter tags like :javascript, support inline HTML
 function(hljs) {
   return {
@@ -7546,7 +7726,7 @@ function(hljs) {
     ]
   };
 };
-},{}],75:[function(require,module,exports){
+},{}],76:[function(require,module,exports){
 module.exports = function(hljs) {
   var BUILT_INS = {'builtin-name': 'each in with if else unless bindattr action collection debugger log outlet template unbound view yield'};
   return {
@@ -7580,7 +7760,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],76:[function(require,module,exports){
+},{}],77:[function(require,module,exports){
 module.exports = function(hljs) {
   var COMMENT = {
     variants: [
@@ -7702,7 +7882,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],77:[function(require,module,exports){
+},{}],78:[function(require,module,exports){
 module.exports = function(hljs) {
   var IDENT_RE = '[a-zA-Z_$][a-zA-Z0-9_$]*';
   var IDENT_FUNC_RETURN_TYPE_RE = '([*]|[a-zA-Z_$][a-zA-Z0-9_$]*)';
@@ -7814,7 +7994,7 @@ module.exports = function(hljs) {
     illegal: /<\//
   };
 };
-},{}],78:[function(require,module,exports){
+},{}],79:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     case_insensitive: true,
@@ -7860,7 +8040,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],79:[function(require,module,exports){
+},{}],80:[function(require,module,exports){
 module.exports = function(hljs) {
   var BUILT_INS = 'action collection component concat debugger each each-in else get hash if input link-to loc log mut outlet partial query-params render textarea unbound unless with yield view';
 
@@ -7931,7 +8111,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],80:[function(require,module,exports){
+},{}],81:[function(require,module,exports){
 module.exports = function(hljs) {
   var VERSION = 'HTTP/[0-9\\.]+';
   return {
@@ -7972,7 +8152,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],81:[function(require,module,exports){
+},{}],82:[function(require,module,exports){
 module.exports = function(hljs) {
   var keywords = {
     'builtin-name':
@@ -8074,7 +8254,7 @@ module.exports = function(hljs) {
     contains: [SHEBANG, LIST, STRING, HINT, HINT_COL, COMMENT, KEY, COLLECTION, NUMBER, LITERAL]
   }
 };
-},{}],82:[function(require,module,exports){
+},{}],83:[function(require,module,exports){
 module.exports = function(hljs) {
   var START_BRACKET = '\\[';
   var END_BRACKET = '\\]';
@@ -8131,7 +8311,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],83:[function(require,module,exports){
+},{}],84:[function(require,module,exports){
 module.exports = function(hljs) {
   var STRING = {
     className: "string",
@@ -8197,7 +8377,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],84:[function(require,module,exports){
+},{}],85:[function(require,module,exports){
 module.exports = function(hljs) {
   var PARAMS = {
     className: 'params',
@@ -8273,7 +8453,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],85:[function(require,module,exports){
+},{}],86:[function(require,module,exports){
 module.exports = function(hljs) {
   var JAVA_IDENT_RE = '[\u00C0-\u02B8a-zA-Z_$][\u00C0-\u02B8a-zA-Z_$0-9]*';
   var GENERIC_IDENT_RE = JAVA_IDENT_RE + '(<' + JAVA_IDENT_RE + '(\\s*,\\s*' + JAVA_IDENT_RE + ')*>)?';
@@ -8381,7 +8561,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],86:[function(require,module,exports){
+},{}],87:[function(require,module,exports){
 module.exports = function(hljs) {
   var IDENT_RE = '[A-Za-z$_][0-9A-Za-z$_]*';
   var KEYWORDS = {
@@ -8552,7 +8732,7 @@ module.exports = function(hljs) {
     illegal: /#(?!!)/
   };
 };
-},{}],87:[function(require,module,exports){
+},{}],88:[function(require,module,exports){
 module.exports = function (hljs) {
   var PARAM = {
     begin: /[\w-]+ *=/, returnBegin: true,
@@ -8599,7 +8779,7 @@ module.exports = function (hljs) {
     ]
   }
 };
-},{}],88:[function(require,module,exports){
+},{}],89:[function(require,module,exports){
 module.exports = function(hljs) {
   var LITERALS = {literal: 'true false null'};
   var TYPES = [
@@ -8636,7 +8816,7 @@ module.exports = function(hljs) {
     illegal: '\\S'
   };
 };
-},{}],89:[function(require,module,exports){
+},{}],90:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     contains: [
@@ -8660,7 +8840,7 @@ module.exports = function(hljs) {
     ]
   }
 };
-},{}],90:[function(require,module,exports){
+},{}],91:[function(require,module,exports){
 module.exports = function(hljs) {
   // Since there are numerous special names in Julia, it is too much trouble
   // to maintain them by hand. Hence these names (i.e. keywords, literals and
@@ -8822,7 +9002,7 @@ module.exports = function(hljs) {
 
   return DEFAULT;
 };
-},{}],91:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS = {
     keyword:
@@ -8996,7 +9176,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],92:[function(require,module,exports){
+},{}],93:[function(require,module,exports){
 module.exports = function(hljs) {
   var LASSO_IDENT_RE = '[a-zA-Z_][\\w.]*';
   var LASSO_ANGLE_RE = '<\\?(lasso(script)?|=)';
@@ -9159,7 +9339,7 @@ module.exports = function(hljs) {
     ].concat(LASSO_CODE)
   };
 };
-},{}],93:[function(require,module,exports){
+},{}],94:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     contains: [
@@ -9182,7 +9362,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],94:[function(require,module,exports){
+},{}],95:[function(require,module,exports){
 module.exports = function (hljs) {
   return {
     contains: [
@@ -9222,7 +9402,7 @@ module.exports = function (hljs) {
     ]
   };
 };
-},{}],95:[function(require,module,exports){
+},{}],96:[function(require,module,exports){
 module.exports = function(hljs) {
   var IDENT_RE        = '[\\w-]+'; // yes, Less identifiers may begin with a digit
   var INTERP_IDENT_RE = '(' + IDENT_RE + '|@{' + IDENT_RE + '})';
@@ -9362,7 +9542,7 @@ module.exports = function(hljs) {
     contains: RULES
   };
 };
-},{}],96:[function(require,module,exports){
+},{}],97:[function(require,module,exports){
 module.exports = function(hljs) {
   var LISP_IDENT_RE = '[a-zA-Z_\\-\\+\\*\\/\\<\\=\\>\\&\\#][a-zA-Z0-9_\\-\\+\\*\\/\\<\\=\\>\\&\\#!]*';
   var MEC_RE = '\\|[^]*?\\|';
@@ -9465,7 +9645,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],97:[function(require,module,exports){
+},{}],98:[function(require,module,exports){
 module.exports = function(hljs) {
   var VARIABLE = {
     begin: '\\b[gtps][A-Z]+[A-Za-z0-9_\\-]*\\b|\\$_[A-Z]+',
@@ -9622,7 +9802,7 @@ module.exports = function(hljs) {
     illegal: ';$|^\\[|^=|&|{'
   };
 };
-},{}],98:[function(require,module,exports){
+},{}],99:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS = {
     keyword:
@@ -9771,7 +9951,7 @@ module.exports = function(hljs) {
     ])
   };
 };
-},{}],99:[function(require,module,exports){
+},{}],100:[function(require,module,exports){
 module.exports = function(hljs) {
   var identifier = '([-a-zA-Z$._][\\w\\-$.]*)';
   return {
@@ -9860,7 +10040,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],100:[function(require,module,exports){
+},{}],101:[function(require,module,exports){
 module.exports = function(hljs) {
 
     var LSL_STRING_ESCAPE_CHARS = {
@@ -9943,7 +10123,7 @@ module.exports = function(hljs) {
         ]
     };
 };
-},{}],101:[function(require,module,exports){
+},{}],102:[function(require,module,exports){
 module.exports = function(hljs) {
   var OPENING_LONG_BRACKET = '\\[=*\\[';
   var CLOSING_LONG_BRACKET = '\\]=*\\]';
@@ -10009,7 +10189,7 @@ module.exports = function(hljs) {
     ])
   };
 };
-},{}],102:[function(require,module,exports){
+},{}],103:[function(require,module,exports){
 module.exports = function(hljs) {
   /* Variables: simple (eg $(var)) and special (eg $@) */
   var VARIABLE = {
@@ -10090,7 +10270,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],103:[function(require,module,exports){
+},{}],104:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['md', 'mkdown', 'mkd'],
@@ -10198,7 +10378,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],104:[function(require,module,exports){
+},{}],105:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['mma'],
@@ -10256,7 +10436,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],105:[function(require,module,exports){
+},{}],106:[function(require,module,exports){
 module.exports = function(hljs) {
   var COMMON_CONTAINS = [
     hljs.C_NUMBER_MODE,
@@ -10344,7 +10524,7 @@ module.exports = function(hljs) {
     ].concat(COMMON_CONTAINS)
   };
 };
-},{}],106:[function(require,module,exports){
+},{}],107:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS = 'if then else elseif for thru do while unless step in and or not';
   var LITERALS = 'true false unknown inf minf ind und %e %i %pi %phi %gamma';
@@ -10750,7 +10930,7 @@ module.exports = function(hljs) {
     illegal: /@/
   }
 };
-},{}],107:[function(require,module,exports){
+},{}],108:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     keywords:
@@ -10975,7 +11155,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],108:[function(require,module,exports){
+},{}],109:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS = {
     keyword:
@@ -11057,7 +11237,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],109:[function(require,module,exports){
+},{}],110:[function(require,module,exports){
 module.exports = function(hljs) {
     //local labels: %?[FB]?[AT]?\d{1,2}\w+
   return {
@@ -11143,7 +11323,7 @@ module.exports = function(hljs) {
     illegal: '\/'
   };
 };
-},{}],110:[function(require,module,exports){
+},{}],111:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     keywords:
@@ -11162,7 +11342,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],111:[function(require,module,exports){
+},{}],112:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     subLanguage: 'xml',
@@ -11187,7 +11367,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],112:[function(require,module,exports){
+},{}],113:[function(require,module,exports){
 module.exports = function(hljs) {
   var NUMBER = {
     className: 'number', relevance: 0,
@@ -11262,7 +11442,7 @@ module.exports = function(hljs) {
     ]
   }
 };
-},{}],113:[function(require,module,exports){
+},{}],114:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS = {
     keyword:
@@ -11374,7 +11554,7 @@ module.exports = function(hljs) {
     ])
   };
 };
-},{}],114:[function(require,module,exports){
+},{}],115:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     case_insensitive: true,
@@ -11443,7 +11623,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],115:[function(require,module,exports){
+},{}],116:[function(require,module,exports){
 module.exports = function(hljs) {
   var VAR = {
     className: 'variable',
@@ -11536,7 +11716,7 @@ module.exports = function(hljs) {
     illegal: '[^\\s\\}]'
   };
 };
-},{}],116:[function(require,module,exports){
+},{}],117:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['nim'],
@@ -11591,7 +11771,7 @@ module.exports = function(hljs) {
     ]
   }
 };
-},{}],117:[function(require,module,exports){
+},{}],118:[function(require,module,exports){
 module.exports = function(hljs) {
   var NIX_KEYWORDS = {
     keyword:
@@ -11640,7 +11820,7 @@ module.exports = function(hljs) {
     contains: EXPRESSIONS
   };
 };
-},{}],118:[function(require,module,exports){
+},{}],119:[function(require,module,exports){
 module.exports = function(hljs) {
   var CONSTANTS = {
     className: 'variable',
@@ -11746,7 +11926,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],119:[function(require,module,exports){
+},{}],120:[function(require,module,exports){
 module.exports = function(hljs) {
   var API_CLASS = {
     className: 'built_in',
@@ -11837,7 +12017,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],120:[function(require,module,exports){
+},{}],121:[function(require,module,exports){
 module.exports = function(hljs) {
   /* missing support for heredoc-like string (OCaml 4.0.2+) */
   return {
@@ -11908,7 +12088,7 @@ module.exports = function(hljs) {
     ]
   }
 };
-},{}],121:[function(require,module,exports){
+},{}],122:[function(require,module,exports){
 module.exports = function(hljs) {
 	var SPECIAL_VARS = {
 		className: 'keyword',
@@ -11965,7 +12145,7 @@ module.exports = function(hljs) {
 		]
 	}
 };
-},{}],122:[function(require,module,exports){
+},{}],123:[function(require,module,exports){
 module.exports = function(hljs) {
   var OXYGENE_KEYWORDS = 'abstract add and array as asc aspect assembly async begin break block by case class concat const copy constructor continue '+
     'create default delegate desc distinct div do downto dynamic each else empty end ensure enum equals event except exit extension external false '+
@@ -12035,7 +12215,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],123:[function(require,module,exports){
+},{}],124:[function(require,module,exports){
 module.exports = function(hljs) {
   var CURLY_SUBCOMMENT = hljs.COMMENT(
     '{',
@@ -12083,7 +12263,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],124:[function(require,module,exports){
+},{}],125:[function(require,module,exports){
 module.exports = function(hljs) {
   var PERL_KEYWORDS = 'getpwent getservent quotemeta msgrcv scalar kill dbmclose undef lc ' +
     'ma syswrite tr send umask sysopen shmwrite vec qx utime local oct semctl localtime ' +
@@ -12240,7 +12420,7 @@ module.exports = function(hljs) {
     contains: PERL_DEFAULT_CONTAINS
   };
 };
-},{}],125:[function(require,module,exports){
+},{}],126:[function(require,module,exports){
 module.exports = function(hljs) {
   var MACRO = {
     className: 'variable',
@@ -12292,7 +12472,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],126:[function(require,module,exports){
+},{}],127:[function(require,module,exports){
 module.exports = function(hljs) {
   var VARIABLE = {
     begin: '\\$+[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*'
@@ -12419,7 +12599,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],127:[function(require,module,exports){
+},{}],128:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS = {
     keyword:
@@ -12510,7 +12690,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],128:[function(require,module,exports){
+},{}],129:[function(require,module,exports){
 module.exports = function(hljs) {
   var BACKTICK_ESCAPE = {
     begin: '`[\\s\\S]',
@@ -12591,7 +12771,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],129:[function(require,module,exports){
+},{}],130:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     keywords: {
@@ -12639,7 +12819,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],130:[function(require,module,exports){
+},{}],131:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     contains: [
@@ -12669,7 +12849,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],131:[function(require,module,exports){
+},{}],132:[function(require,module,exports){
 module.exports = function(hljs) {
 
   var ATOM = {
@@ -12757,7 +12937,7 @@ module.exports = function(hljs) {
     ])
   };
 };
-},{}],132:[function(require,module,exports){
+},{}],133:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     keywords: {
@@ -12793,7 +12973,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],133:[function(require,module,exports){
+},{}],134:[function(require,module,exports){
 module.exports = function(hljs) {
 
   var PUPPET_KEYWORDS = {
@@ -12908,7 +13088,7 @@ module.exports = function(hljs) {
     ]
   }
 };
-},{}],134:[function(require,module,exports){
+},{}],135:[function(require,module,exports){
 module.exports = // Base deafult colors in PB IDE: background: #FFFFDF; foreground: #000000;
 
 function(hljs) {
@@ -12966,7 +13146,7 @@ function(hljs) {
     ]
   };
 };
-},{}],135:[function(require,module,exports){
+},{}],136:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS = {
     keyword:
@@ -13082,7 +13262,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],136:[function(require,module,exports){
+},{}],137:[function(require,module,exports){
 module.exports = function(hljs) {
   var Q_KEYWORDS = {
   keyword:
@@ -13105,7 +13285,7 @@ module.exports = function(hljs) {
      ]
   };
 };
-},{}],137:[function(require,module,exports){
+},{}],138:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS = {
       keyword:
@@ -13274,7 +13454,7 @@ module.exports = function(hljs) {
     illegal: /#/
   };
 };
-},{}],138:[function(require,module,exports){
+},{}],139:[function(require,module,exports){
 module.exports = function(hljs) {
   var IDENT_RE = '([a-zA-Z]|\\.[a-zA-Z.])[a-zA-Z0-9._]*';
 
@@ -13344,7 +13524,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],139:[function(require,module,exports){
+},{}],140:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     keywords:
@@ -13371,7 +13551,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],140:[function(require,module,exports){
+},{}],141:[function(require,module,exports){
 module.exports = function(hljs) {
   var IDENTIFIER = '[a-zA-Z-_][^\\n{]+\\{';
 
@@ -13438,7 +13618,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],141:[function(require,module,exports){
+},{}],142:[function(require,module,exports){
 module.exports = // Colors from RouterOS terminal:
 //   green        - #0E9A00
 //   teal         - #0C9A9A
@@ -13597,7 +13777,7 @@ function(hljs) {
     ]
   };
 };
-},{}],142:[function(require,module,exports){
+},{}],143:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     keywords: {
@@ -13633,7 +13813,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],143:[function(require,module,exports){
+},{}],144:[function(require,module,exports){
 module.exports = function(hljs) {
   var RUBY_METHOD_RE = '[a-zA-Z_]\\w*[!?=]?|[-+~]\\@|<<|>>|=~|===?|<=>|[<>]=?|\\*\\*|[-/+%^&*~`|]|\\[\\]=?';
   var RUBY_KEYWORDS = {
@@ -13810,7 +13990,7 @@ module.exports = function(hljs) {
     contains: COMMENT_MODES.concat(IRB_DEFAULT).concat(RUBY_DEFAULT_CONTAINS)
   };
 };
-},{}],144:[function(require,module,exports){
+},{}],145:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     keywords: {
@@ -13871,7 +14051,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],145:[function(require,module,exports){
+},{}],146:[function(require,module,exports){
 module.exports = function(hljs) {
   var NUM_SUFFIX = '([ui](8|16|32|64|128|size)|f(32|64))\?';
   var KEYWORDS =
@@ -13979,7 +14159,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],146:[function(require,module,exports){
+},{}],147:[function(require,module,exports){
 module.exports = function(hljs) {
 
   var ANNOTATION = { className: 'meta', begin: '@[A-Za-z]+' };
@@ -14094,7 +14274,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],147:[function(require,module,exports){
+},{}],148:[function(require,module,exports){
 module.exports = function(hljs) {
   var SCHEME_IDENT_RE = '[^\\(\\)\\[\\]\\{\\}",\'`;#|\\\\\\s]+';
   var SCHEME_SIMPLE_NUMBER_RE = '(\\-|\\+)?\\d+([./]\\d+)?';
@@ -14238,7 +14418,7 @@ module.exports = function(hljs) {
     contains: [SHEBANG, NUMBER, STRING, QUOTED_IDENT, QUOTED_LIST, LIST].concat(COMMENT_MODES)
   };
 };
-},{}],148:[function(require,module,exports){
+},{}],149:[function(require,module,exports){
 module.exports = function(hljs) {
 
   var COMMON_CONTAINS = [
@@ -14292,7 +14472,7 @@ module.exports = function(hljs) {
     ].concat(COMMON_CONTAINS)
   };
 };
-},{}],149:[function(require,module,exports){
+},{}],150:[function(require,module,exports){
 module.exports = function(hljs) {
   var IDENT_RE = '[a-zA-Z-][a-zA-Z0-9_-]*';
   var VARIABLE = {
@@ -14390,7 +14570,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],150:[function(require,module,exports){
+},{}],151:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['console'],
@@ -14405,7 +14585,7 @@ module.exports = function(hljs) {
     ]
   }
 };
-},{}],151:[function(require,module,exports){
+},{}],152:[function(require,module,exports){
 module.exports = function(hljs) {
   var smali_instr_low_prio = ['add', 'and', 'cmp', 'cmpg', 'cmpl', 'const', 'div', 'double', 'float', 'goto', 'if', 'int', 'long', 'move', 'mul', 'neg', 'new', 'nop', 'not', 'or', 'rem', 'return', 'shl', 'shr', 'sput', 'sub', 'throw', 'ushr', 'xor'];
   var smali_instr_high_prio = ['aget', 'aput', 'array', 'check', 'execute', 'fill', 'filled', 'goto/16', 'goto/32', 'iget', 'instance', 'invoke', 'iput', 'monitor', 'packed', 'sget', 'sparse'];
@@ -14461,7 +14641,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],152:[function(require,module,exports){
+},{}],153:[function(require,module,exports){
 module.exports = function(hljs) {
   var VAR_IDENT_RE = '[a-z][a-zA-Z0-9_]*';
   var CHAR = {
@@ -14511,7 +14691,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],153:[function(require,module,exports){
+},{}],154:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['ml'],
@@ -14577,7 +14757,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],154:[function(require,module,exports){
+},{}],155:[function(require,module,exports){
 module.exports = function(hljs) {
   var CPP = hljs.getLanguage('cpp').exports;
 
@@ -14948,7 +15128,7 @@ module.exports = function(hljs) {
     illegal: /#/
   };
 };
-},{}],155:[function(require,module,exports){
+},{}],156:[function(require,module,exports){
 module.exports = function(hljs) {
   var COMMENT_MODE = hljs.COMMENT('--', '$');
   return {
@@ -15108,7 +15288,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],156:[function(require,module,exports){
+},{}],157:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     contains: [
@@ -15191,7 +15371,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],157:[function(require,module,exports){
+},{}],158:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['do', 'ado'],
@@ -15229,7 +15409,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],158:[function(require,module,exports){
+},{}],159:[function(require,module,exports){
 module.exports = function(hljs) {
   var STEP21_IDENT_RE = '[A-Z_][A-Z0-9_.]*';
   var STEP21_KEYWORDS = {
@@ -15276,7 +15456,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],159:[function(require,module,exports){
+},{}],160:[function(require,module,exports){
 module.exports = function(hljs) {
 
   var VARIABLE = {
@@ -15730,7 +15910,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],160:[function(require,module,exports){
+},{}],161:[function(require,module,exports){
 module.exports = function(hljs) {
   var DETAILS = {
     className: 'string',
@@ -15764,7 +15944,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],161:[function(require,module,exports){
+},{}],162:[function(require,module,exports){
 module.exports = function(hljs) {
   var SWIFT_KEYWORDS = {
       keyword: '__COLUMN__ __FILE__ __FUNCTION__ __LINE__ as as! as? associativity ' +
@@ -15881,7 +16061,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],162:[function(require,module,exports){
+},{}],163:[function(require,module,exports){
 module.exports = function(hljs) {
 
   var COMMENT = {
@@ -15925,7 +16105,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],163:[function(require,module,exports){
+},{}],164:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     case_insensitive: true,
@@ -15961,7 +16141,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],164:[function(require,module,exports){
+},{}],165:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['tk'],
@@ -16022,7 +16202,7 @@ module.exports = function(hljs) {
     ]
   }
 };
-},{}],165:[function(require,module,exports){
+},{}],166:[function(require,module,exports){
 module.exports = function(hljs) {
   var COMMAND = {
     className: 'tag',
@@ -16084,7 +16264,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],166:[function(require,module,exports){
+},{}],167:[function(require,module,exports){
 module.exports = function(hljs) {
   var BUILT_IN_TYPES = 'bool byte i16 i32 i64 double string binary';
   return {
@@ -16119,7 +16299,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],167:[function(require,module,exports){
+},{}],168:[function(require,module,exports){
 module.exports = function(hljs) {
   var TPID = {
     className: 'number',
@@ -16203,7 +16383,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],168:[function(require,module,exports){
+},{}],169:[function(require,module,exports){
 module.exports = function(hljs) {
   var PARAMS = {
     className: 'params',
@@ -16269,7 +16449,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],169:[function(require,module,exports){
+},{}],170:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS = {
     keyword:
@@ -16425,7 +16605,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],170:[function(require,module,exports){
+},{}],171:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     keywords: {
@@ -16475,7 +16655,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],171:[function(require,module,exports){
+},{}],172:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['vb'],
@@ -16531,7 +16711,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],172:[function(require,module,exports){
+},{}],173:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     subLanguage: 'xml',
@@ -16543,7 +16723,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],173:[function(require,module,exports){
+},{}],174:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     aliases: ['vbs'],
@@ -16582,7 +16762,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],174:[function(require,module,exports){
+},{}],175:[function(require,module,exports){
 module.exports = function(hljs) {
   var SV_KEYWORDS = {
     keyword:
@@ -16681,7 +16861,7 @@ module.exports = function(hljs) {
     ]
   }; // return
 };
-},{}],175:[function(require,module,exports){
+},{}],176:[function(require,module,exports){
 module.exports = function(hljs) {
   // Regular expression for VHDL numeric literals.
 
@@ -16742,7 +16922,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],176:[function(require,module,exports){
+},{}],177:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     lexemes: /[!#@\w]+/,
@@ -16848,7 +17028,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],177:[function(require,module,exports){
+},{}],178:[function(require,module,exports){
 module.exports = function(hljs) {
   return {
     case_insensitive: true,
@@ -16984,7 +17164,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],178:[function(require,module,exports){
+},{}],179:[function(require,module,exports){
 module.exports = function(hljs) {
   var BUILTIN_MODULES =
     'ObjectLoader Animate MovieCredits Slides Filters Shading Materials LensFlare Mapping VLCAudioVideo ' +
@@ -17057,7 +17237,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],179:[function(require,module,exports){
+},{}],180:[function(require,module,exports){
 module.exports = function(hljs) {
   var XML_IDENT_RE = '[A-Za-z0-9\\._:-]+';
   var TAG_INTERNALS = {
@@ -17160,7 +17340,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],180:[function(require,module,exports){
+},{}],181:[function(require,module,exports){
 module.exports = function(hljs) {
   var KEYWORDS = 'for let if while then else return where group by xquery encoding version' +
     'module namespace boundary-space preserve strip default collation base-uri ordering' +
@@ -17231,7 +17411,7 @@ module.exports = function(hljs) {
     contains: CONTAINS
   };
 };
-},{}],181:[function(require,module,exports){
+},{}],182:[function(require,module,exports){
 module.exports = function(hljs) {
   var LITERALS = 'true false yes no null';
 
@@ -17319,7 +17499,7 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],182:[function(require,module,exports){
+},{}],183:[function(require,module,exports){
 module.exports = function(hljs) {
   var STRING = {
     className: 'string',
@@ -17426,245 +17606,4 @@ module.exports = function(hljs) {
     ]
   };
 };
-},{}],183:[function(require,module,exports){
-/*
-    angle.js <https://github.com/davidfig/anglejs>
-    Released under MIT license <https://github.com/davidfig/angle/blob/master/LICENSE>
-    Author: David Figatner
-    Copyright (c) 2016 YOPEY YOPEY LLC
-*/
-
-/** @class */
-class Angle
-{
-    constructor()
-    {
-        // constants
-        this.UP = Math.PI / 2;
-        this.DOWN = 3 * Math.PI / 2;
-        this.LEFT = Math.PI;
-        this.RIGHT = 0;
-
-        this.NORTH = this.UP;
-        this.SOUTH = this.DOWN;
-        this.WEST = this.LEFT;
-        this.EAST = this.RIGHT;
-
-        this.PI_2 = Math.PI * 2;
-        this.PI_QUARTER = Math.PI / 4;
-        this.PI_HALF = Math.PI / 2;
-
-        this._toDegreeConversion = 180 / Math.PI;
-        this._toRadianConversion = Math.PI / 180;
-    }
-
-    /**
-     * converts from radians to degrees (all other functions expect radians)
-     * @param {number} radians
-     * @return {number} degrees
-     */
-    toDegrees(radians)
-    {
-        return radians * this._toDegreeConversion;
-    }
-
-    /**
-     * converts from degrees to radians (all other functions expect radians)
-     * @param {number} degrees
-     * @return {number} radians
-     */
-    toRadians(degrees)
-    {
-        return degrees * this._toRadianConversion;
-    }
-
-    /**
-     * returns whether the target angle is between angle1 and angle2 (in radians)
-     * (based on: http://stackoverflow.com/questions/11406189/determine-if-angle-lies-between-2-other-angles)
-     * @param {number} target angle
-     * @param {number} angle1
-     * @param {number} angle2
-     * @return {boolean}
-     */
-    isAngleBetween(target, angle1, angle2)
-    {
-        const rAngle = ((angle2 - angle1) % this.PI_2 + this.PI_2) % this.PI_2;
-        if (rAngle >= Math.PI)
-        {
-            const swap = angle1;
-            angle1 = angle2;
-            angle2 = swap;
-        }
-
-        if (angle1 <= angle2)
-        {
-            return target >= angle1 && target <= angle2;
-        }
-        else
-        {
-            return target >= angle1 || target <= angle2;
-        }
-    }
-
-    /**
-     * returns +1 or -1 based on whether the difference between two angles is positive or negative (in radians)
-     * @param {number} target angle
-     * @param {number} source angle
-     * @return {number} 1 or -1
-     */
-    differenceAnglesSign(target, source)
-    {
-        function mod(a, n)
-        {
-            return (a % n + n) % n;
-        }
-
-        const a = target - source;
-        return mod((a + Math.PI), this.PI_2) - Math.PI > 0 ? 1 : -1;
-    }
-
-    /**
-     * returns the normalized difference between two angles (in radians)
-     * @param {number} a - first angle
-     * @param {number} b - second angle
-     * @return {number} normalized difference between a and b
-     */
-    differenceAngles(a, b)
-    {
-        const c = Math.abs(a - b) % this.PI_2;
-        return c > Math.PI ? (this.PI_2 - c) : c;
-    }
-
-    /**
-     * returns a target angle that is the shortest way to rotate an object between start and to--may choose a negative angle
-     * @param {number} start
-     * @param {number} to
-     * @return {number} shortest target angle
-     */
-    shortestAngle(start, to)
-    {
-        const difference = this.differenceAngles(to, start);
-        const sign = this.differenceAnglesSign(to, start);
-        const delta = difference * sign;
-        return delta + start;
-    }
-
-    /**
-     * returns the normalized angle (0 - PI x 2)
-     * @param {number} radians
-     * @return {number} normalized angle in radians
-     */
-    normalize(radians)
-    {
-        return radians - this.PI_2 * Math.floor(radians / this.PI_2);
-    }
-
-    /**
-     * returns angle between two points (in radians)
-     * @param {Point} [point1] {x: x, y: y}
-     * @param {Point} [point2] {x: x, y: y}
-     * @param {number} [x1]
-     * @param {number} [y1]
-     * @param {number} [x2]
-     * @param {number} [y2]
-     * @return {number} angle
-     */
-    angleTwoPoints(/* (point1, point2) OR (x1, y1, x2, y2) */)
-    {
-        if (arguments.length === 4)
-        {
-            return Math.atan2(arguments[3] - arguments[1], arguments[2] - arguments[0]);
-        }
-        else
-        {
-            return Math.atan2(arguments[1].y - arguments[0].y, arguments[1].x - arguments[0].x);
-        }
-    }
-
-    /**
-     * returns distance between two points
-     * @param {Point} [point1] {x: x, y: y}
-     * @param {Point} [point2] {x: x, y: y}
-     * @param {number} [x1]
-     * @param {number} [y1]
-     * @param {number} [x2]
-     * @param {number} [y2]
-     * @return {number} distance
-     */
-    distanceTwoPoints(/* (point1, point2) OR (x1, y1, x2, y2) */)
-    {
-        if (arguments.length === 2)
-        {
-            return Math.sqrt(Math.pow(arguments[1].x - arguments[0].x, 2) + Math.pow(arguments[1].y - arguments[0].y, 2));
-        }
-        else
-        {
-            return Math.sqrt(Math.pow(arguments[2] - arguments[0], 2) + Math.pow(arguments[3] - arguments[1], 2));
-        }
-    }
-
-    /**
-     * returns the squared distance between two points
-     * @param {Point} [point1] {x: x, y: y}
-     * @param {Point} [point2] {x: x, y: y}
-     * @param {number} [x1]
-     * @param {number} [y1]
-     * @param {number} [x2]
-     * @param {number} [y2]
-     * @return {number} squared distance
-     */
-    distanceTwoPointsSquared(/* (point1, point2) OR (x1, y1, x2, y2) */)
-    {
-        if (arguments.length === 2)
-        {
-            return Math.pow(arguments[1].x - arguments[0].x, 2) + Math.pow(arguments[1].y - arguments[0].y, 2);
-        }
-        else
-        {
-            return Math.pow(arguments[2] - arguments[0], 2) + Math.pow(arguments[3] - arguments[1], 2);
-        }
-    }
-
-    /**
-     * returns the closest cardinal (N, S, E, W) to the given angle (in radians)
-     * @param {number} angle
-     * @return {number} closest cardinal in radians
-     */
-    closestAngle(angle)
-    {
-        const left = this.differenceAngles(angle, this.LEFT);
-        const right = this.differenceAngles(angle, this.RIGHT);
-        const up = this.differenceAngles(angle, this.UP);
-        const down = this.differenceAngles(angle, this.DOWN);
-        if (left <= right && left <= up && left <= down)
-        {
-            return this.LEFT;
-        }
-        else if (right <= up && right <= down)
-        {
-            return this.RIGHT;
-        }
-        else if (up <= down)
-        {
-            return this.UP;
-        }
-        else
-        {
-            return this.DOWN;
-        }
-    }
-
-    /**
-     * checks whether angles a1 and a2 are equal (after normalizing)
-     * @param {number} a1
-     * @param {number} a2
-     * @param {boolean} a1 === a2
-     *  */
-    equals(a1, a2)
-    {
-        return this.normalize(a1) === this.normalize(a2);
-    }
-}
-
-module.exports = new Angle();
 },{}]},{},[1]);
