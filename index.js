@@ -10,6 +10,11 @@ module.exports = class Input extends EventEmitter
      * @param {object} [options]
      * @param {boolean} [options.keys] turn on key listener
      * @param {boolean} [options.chromeDebug] ignore chrome debug keys, and force page reload with ctrl/cmd+r
+     * @fires {down} emits a call with (x, y) when touch or mouse is down
+     * @fires {up} emits a call with (x, y) when touch or mouse is up or cancelled
+     * @fires {move} emits a call with (x, y) when touch or mouse moves
+     * @fires {keydown} emits a call with (keycode, { shift: boolean, meta: boolean, ctrl: boolean }) when key is pressed
+     * @fires {keyup} emits a call with (keycode, { shift: boolean, meta: boolean, ctrl: boolean }) when key is released
      */
     constructor(div, options)
     {
@@ -39,6 +44,7 @@ module.exports = class Input extends EventEmitter
 
     /**
      * helper function to find touch from list based on id
+     * @private
      * @param  {number} id for saved touch
      * @return {object}
      */
@@ -73,6 +79,7 @@ module.exports = class Input extends EventEmitter
 
     /**
      * Handle touch start
+     * @private
      * @param  {object} e touch event
      */
     touchStart(e)
@@ -95,6 +102,7 @@ module.exports = class Input extends EventEmitter
 
     /**
      * Handle touch move
+     * @private
      * @param  {object} e touch event
      */
     touchMove(e)
@@ -109,6 +117,7 @@ module.exports = class Input extends EventEmitter
 
     /**
      * Handle touch end
+     * @private
      * @param  {object} e touch event
      */
     touchEnd(e)
@@ -128,6 +137,7 @@ module.exports = class Input extends EventEmitter
 
     /**
      * Handle mouse down
+     * @private
      * @param  {object} e touch event
      */
     mouseDown(e)
@@ -140,6 +150,7 @@ module.exports = class Input extends EventEmitter
 
     /**
      * Handle mouse move
+     * @private
      * @param  {object} e touch event
      */
     mouseMove(e)
@@ -152,6 +163,7 @@ module.exports = class Input extends EventEmitter
 
     /**
      * Handle mouse up
+     * @private
      * @param  {object} e touch event
      */
     mouseUp(e)
@@ -178,6 +190,7 @@ module.exports = class Input extends EventEmitter
 
     /**
      * Sets event listener for keyboard
+     * @private
      */
     keysListener()
     {
@@ -186,6 +199,7 @@ module.exports = class Input extends EventEmitter
     }
 
     /**
+     * @private
      * @param  {object} e
      */
     keydown(e)
@@ -214,6 +228,7 @@ module.exports = class Input extends EventEmitter
 
     /**
      * Handle key up
+     * @private
      * @param  {object}
      */
     keyup(e)
