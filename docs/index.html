@@ -57,6 +57,18 @@
             position: absolute;
             bottom: 0
         }
+
+        #click, #hold {
+            position: absolute;
+            color: white;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        #click {
+            transform: translate(-50%, 50%)
+        }
+
     </style>
     <script src="index.js"></script>
 </head>
@@ -65,6 +77,8 @@
     <div id="test">
         <div class="instructions">move mouse, touch screen, or press keys with or without modifiers</div>
         <div id="show"></div>
+        <div id="click"></div>
+        <div id="hold"></div>
     </div>
     <div class="title">Example for <a href="https://github.com/davidfig/input/">github.com/davidfig/input/</a></div>
     <pre><code class="javascript" id="code"></code></pre>

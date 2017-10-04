@@ -31,11 +31,13 @@ https://davidfig.github.io/input/
      * @param {object} [options]
      * @param {boolean} [options.keys] turn on key listener
      * @param {boolean} [options.chromeDebug] ignore chrome debug keys, and force page reload with ctrl/cmd+r
-     * @fires {down} emits a call with (x, y) when touch or mouse is down
-     * @fires {up} emits a call with (x, y) when touch or mouse is up or cancelled
-     * @fires {move} emits a call with (x, y) when touch or mouse moves
-     * @fires {keydown} emits a call with (keycode, { shift: boolean, meta: boolean, ctrl: boolean }) when key is pressed
-     * @fires {keyup} emits a call with (keycode, { shift: boolean, meta: boolean, ctrl: boolean }) when key is released
+     * @param {number} [options.threshold=5] maximum number of pixels to move while mouse/touch downbefore cancelling 'click'
+     * @event down(x, y) emits when touch or mouse is first down
+     * @event up(x, y) emits when touch or mouse is up or cancelled
+     * @event move(x, y) emits when touch or mouse moves (even if mouse is still up)
+     * @event keydown(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}) emits when key is pressed
+     * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}) emits when key is released
+     * @event click(x, y) emits awith touch or mouse click
      */
     constructor(div, options)
 ```

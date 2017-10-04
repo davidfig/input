@@ -1,6 +1,6 @@
 {
     "name": "yy-input",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "description": "Generate points for simple shapes and curves: arcs, rectangles, rounded rectangles, circles, ellipses, bezierCurveTo, bezierCurveThrough (i.e., bezier curves through specific points)",
     "main": "index.js",
     "directories": {
@@ -29,9 +29,11 @@
     "homepage": "https://github.com/davidfig/shape-points#readme",
     "devDependencies": {
         "fork-me-github": "^1.0.2",
-        "highlight.js": "^9.12.0"
+        "highlight.js": "^9.12.0",
+        "yy-update": "^1.2.0"
     },
     "dependencies": {
-        "eventemitter3": "^2.0.3"
+        "eventemitter3": "^2.0.3",
+        "pixi-ease": "^0.7.1"
     }
 }

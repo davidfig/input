@@ -10,17 +10,20 @@ module.exports = class Input extends EventEmitter
      * @param {object} [options]
      * @param {boolean} [options.keys] turn on key listener
      * @param {boolean} [options.chromeDebug] ignore chrome debug keys, and force page reload with ctrl/cmd+r
-     * @fires {down} emits a call with (x, y) when touch or mouse is down
-     * @fires {up} emits a call with (x, y) when touch or mouse is up or cancelled
-     * @fires {move} emits a call with (x, y) when touch or mouse moves
-     * @fires {keydown} emits a call with (keycode, { shift: boolean, meta: boolean, ctrl: boolean }) when key is pressed
-     * @fires {keyup} emits a call with (keycode, { shift: boolean, meta: boolean, ctrl: boolean }) when key is released
+     * @param {number} [options.threshold=5] maximum number of pixels to move while mouse/touch downbefore cancelling 'click'
+     * @event down(x, y) emits when touch or mouse is first down
+     * @event up(x, y) emits when touch or mouse is up or cancelled
+     * @event move(x, y) emits when touch or mouse moves (even if mouse is still up)
+     * @event keydown(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}) emits when key is pressed
+     * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}) emits when key is released
+     * @event click(x, y) emits awith touch or mouse click
      */
     constructor(div, options)
     {
         super()
 
         this.options = options || {}
+        this.options.threshold = typeof this.options.threshold === 'undefined' ? 5 : this.options.threshold
 
         this.touches = []
         this.keys = {}
@@ -176,16 +179,35 @@ module.exports = class Input extends EventEmitter
     handleDown(x, y)
     {
         this.emit('down', x, y)
+        if (this.touches > 1)
+        {
+            this.start = null
+        }
+        else
+        {
+            this.start = { x, y }
+        }
     }
 
     handleUp(x, y)
     {
         this.emit('up', x, y)
+        if (this.start)
+        {
+            this.emit('click', x, y)
+        }
     }
 
     handleMove(x, y)
     {
         this.emit('move', x, y)
+        if (this.start)
+        {
+            if (Math.abs(this.start.x - x) > this.options.threshold || Math.abs(this.start.y - y) > this.options.threshold)
+            {
+                this.start = null
+            }
+        }
     }
 
     /**
