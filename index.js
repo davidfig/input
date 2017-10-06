@@ -8,15 +8,16 @@ module.exports = class Input extends EventEmitter
      * basic input support for touch, mouse, and keyboard
      * @param {HTMLElement} object to attach listener to
      * @param {object} [options]
+     * @param {boolean} [options.noPointer] turns off mouse/touch handlers
      * @param {boolean} [options.keys] turn on key listener
      * @param {boolean} [options.chromeDebug] ignore chrome debug keys, and force page reload with ctrl/cmd+r
      * @param {number} [options.threshold=5] maximum number of pixels to move while mouse/touch downbefore cancelling 'click'
-     * @event down(x, y) emits when touch or mouse is first down
-     * @event up(x, y) emits when touch or mouse is up or cancelled
-     * @event move(x, y) emits when touch or mouse moves (even if mouse is still up)
-     * @event keydown(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}) emits when key is pressed
-     * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}) emits when key is released
-     * @event click(x, y) emits awith touch or mouse click
+     * @event down(x, y, event) emits when touch or mouse is first down
+     * @event up(x, y, event) emits when touch or mouse is up or cancelled
+     * @event move(x, y, event) emits when touch or mouse moves (even if mouse is still up)
+     * @event keydown(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, event) emits when key is pressed
+     * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, event) emits when key is released
+     * @event click(x, y, event) emits awith touch or mouse click
      */
     constructor(div, options)
     {
@@ -29,15 +30,18 @@ module.exports = class Input extends EventEmitter
         this.keys = {}
         this.input = []
 
-        div.addEventListener('mousedown', this.mouseDown.bind(this))
-        div.addEventListener('mousemove', this.mouseMove.bind(this))
-        div.addEventListener('mouseup', this.mouseUp.bind(this))
-        div.addEventListener('mouseout', this.mouseUp.bind(this))
+        if (!this.options.noPointer)
+        {
+            div.addEventListener('mousedown', this.mouseDown.bind(this))
+            div.addEventListener('mousemove', this.mouseMove.bind(this))
+            div.addEventListener('mouseup', this.mouseUp.bind(this))
+            div.addEventListener('mouseout', this.mouseUp.bind(this))
 
-        div.addEventListener('touchstart', this.touchStart.bind(this))
-        div.addEventListener('touchmove', this.touchMove.bind(this))
-        div.addEventListener('touchend', this.touchEnd.bind(this))
-        div.addEventListener('touchcancel', this.touchEnd.bind(this))
+            div.addEventListener('touchstart', this.touchStart.bind(this))
+            div.addEventListener('touchmove', this.touchMove.bind(this))
+            div.addEventListener('touchend', this.touchEnd.bind(this))
+            div.addEventListener('touchcancel', this.touchEnd.bind(this))
+        }
 
         if (this.options.keys)
         {
@@ -99,7 +103,7 @@ module.exports = class Input extends EventEmitter
                 start: Date.now()
             }
             this.touches.push(entry)
-            this.handleDown(touch.clientX, touch.clientY)
+            this.handleDown(touch.clientX, touch.clientY, e)
         }
     }
 
@@ -114,7 +118,7 @@ module.exports = class Input extends EventEmitter
         for (let i = 0; i < e.changedTouches.length; i++)
         {
             const touch = e.changedTouches[i]
-            this.handleMove(touch.clientX, touch.clientY)
+            this.handleMove(touch.clientX, touch.clientY, e)
         }
     }
 
@@ -133,7 +137,7 @@ module.exports = class Input extends EventEmitter
             if (previous !== null)
             {
                 this.removeTouch(touch.identifier)
-                this.handleUp(touch.clientX, touch.clientY)
+                this.handleUp(touch.clientX, touch.clientY, e)
             }
         }
     }
@@ -148,7 +152,7 @@ module.exports = class Input extends EventEmitter
         e.preventDefault()
         const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
         const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
-        this.handleDown(x, y)
+        this.handleDown(x, y, e)
     }
 
     /**
@@ -161,7 +165,7 @@ module.exports = class Input extends EventEmitter
         e.preventDefault()
         const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
         const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
-        this.handleMove(x, y)
+        this.handleMove(x, y, e)
     }
 
     /**
@@ -173,12 +177,12 @@ module.exports = class Input extends EventEmitter
     {
         const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
         const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
-        this.handleUp(x, y)
+        this.handleUp(x, y, e)
     }
 
-    handleDown(x, y)
+    handleDown(x, y, e)
     {
-        this.emit('down', x, y)
+        this.emit('down', x, y, e)
         if (this.touches > 1)
         {
             this.start = null
@@ -189,18 +193,18 @@ module.exports = class Input extends EventEmitter
         }
     }
 
-    handleUp(x, y)
+    handleUp(x, y, e)
     {
-        this.emit('up', x, y)
+        this.emit('up', x, y, e)
         if (this.start)
         {
-            this.emit('click', x, y)
+            this.emit('click', x, y, e)
         }
     }
 
-    handleMove(x, y)
+    handleMove(x, y, e)
     {
-        this.emit('move', x, y)
+        this.emit('move', x, y, e)
         if (this.start)
         {
             if (Math.abs(this.start.x - x) > this.options.threshold || Math.abs(this.start.y - y) > this.options.threshold)
@@ -245,7 +249,7 @@ module.exports = class Input extends EventEmitter
                 return
             }
         }
-        this.emit('keydown', code, this.keys)
+        this.emit('keydown', code, this.keys, e)
     }
 
     /**
@@ -259,6 +263,6 @@ module.exports = class Input extends EventEmitter
         this.keys.meta = e.metaKey
         this.keys.ctrl = e.ctrlKey
         const code = (typeof e.which === 'number') ? e.which : e.keyCode
-        this.emit('keyup', code, this.keys)
+        this.emit('keyup', code, this.keys, e)
     }
 }
