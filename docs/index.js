@@ -124,18 +124,20 @@ module.exports = class Input extends EventEmitter
 {
     /**
      * basic input support for touch, mouse, and keyboard
+     *
      * @param {HTMLElement} object to attach listener to
      * @param {object} [options]
      * @param {boolean} [options.noPointer] turns off mouse/touch handlers
      * @param {boolean} [options.keys] turn on key listener
      * @param {boolean} [options.chromeDebug] ignore chrome debug keys, and force page reload with ctrl/cmd+r
      * @param {number} [options.threshold=5] maximum number of pixels to move while mouse/touch downbefore cancelling 'click'
-     * @event down(x, y, event) emits when touch or mouse is first down
-     * @event up(x, y, event) emits when touch or mouse is up or cancelled
-     * @event move(x, y, event) emits when touch or mouse moves (even if mouse is still up)
-     * @event keydown(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, event) emits when key is pressed
-     * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, event) emits when key is released
-     * @event click(x, y, event) emits awith touch or mouse click
+     *
+     * @event down(x, y, event, this) emits when touch or mouse is first down
+     * @event up(x, y, event, this) emits when touch or mouse is up or cancelled
+     * @event move(x, y, event, this) emits when touch or mouse moves (even if mouse is still up)
+     * @event keydown(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, event, this) emits when key is pressed
+     * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, event, this) emits when key is released
+     * @event click(x, y, event, this) emits when "click" for touch or mouse
      */
     constructor(div, options)
     {
@@ -217,11 +219,10 @@ module.exports = class Input extends EventEmitter
             const entry = {
                 identifier: touch.identifier,
                 x: touch.clientX,
-                y: touch.clientY,
-                start: Date.now()
+                y: touch.clientY
             }
             this.touches.push(entry)
-            this.handleDown(touch.clientX, touch.clientY, e)
+            this.handleDown(touch.clientX, touch.clientY, e, this.touches)
         }
     }
 
@@ -300,7 +301,7 @@ module.exports = class Input extends EventEmitter
 
     handleDown(x, y, e)
     {
-        this.emit('down', x, y, e)
+        this.emit('down', x, y, e, this)
         if (this.touches > 1)
         {
             this.start = null
@@ -313,16 +314,16 @@ module.exports = class Input extends EventEmitter
 
     handleUp(x, y, e)
     {
-        this.emit('up', x, y, e)
+        this.emit('up', x, y, e, this)
         if (this.start)
         {
-            this.emit('click', x, y, e)
+            this.emit('click', x, y, e, this)
         }
     }
 
     handleMove(x, y, e)
     {
-        this.emit('move', x, y, e)
+        this.emit('move', x, y, e, this)
         if (this.start)
         {
             if (Math.abs(this.start.x - x) > this.options.threshold || Math.abs(this.start.y - y) > this.options.threshold)
