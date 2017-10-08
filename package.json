@@ -1,7 +1,7 @@
 {
     "name": "yy-input",
-    "version": "1.4.0",
-    "description": "Generate points for simple shapes and curves: arcs, rectangles, rounded rectangles, circles, ellipses, bezierCurveTo, bezierCurveThrough (i.e., bezier curves through specific points)",
+    "version": "0.4.0",
+    "description": "basic input support for touch, mouse, and keyboard",
     "main": "index.js",
     "directories": {
         "doc": "docs"
@@ -14,7 +14,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/davidfig/shape-points.git"
+        "url": "git+https://github.com/davidfig/input.git"
     },
     "keywords": [
         "input",
@@ -24,15 +24,15 @@
     "author": "David Figatner",
     "license": "MIT",
     "bugs": {
-        "url": "https://github.com/davidfig/shape-points/issues"
+        "url": "https://github.com/davidfig/input/issues"
     },
-    "homepage": "https://github.com/davidfig/shape-points#readme",
+    "homepage": "https://github.com/davidfig/input#readme",
     "devDependencies": {
         "fork-me-github": "^1.0.2",
-        "highlight.js": "^9.12.0"
+        "highlight.js": "^9.12.0",
+        "pixi-ease": "^0.11.0"
     },
     "dependencies": {
-        "eventemitter3": "^2.0.3",
-        "pixi-ease": "^0.11.0"
+        "eventemitter3": "^2.0.3"
     }
 }
