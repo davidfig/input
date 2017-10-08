@@ -1,65 +1,75 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 const Ease = require('pixi-ease')
-const Update = require('yy-update')
 
 const Input = require('..')
 
-let div, show, down, hold, click, ease, fadeUp, fadeClick
+let div, ease, keyboard, shows = []
 
 const FADE_TIME = 1500
 
 function test()
 {
-    const input = new Input(div, { keys: true, chromeDebug: true })
+    const input = new Input(div, { keys: true, chromeDebug: true, preventDefault: true })
     input.on('down',
-        function (x, y)
+        function (x, y, data)
         {
-            ease.remove(fadeUp)
-            hold.style.opacity = 1
-            hold.style.left = x + 'px'
-            hold.style.top = y + 'px'
-            hold.innerHTML = 'down'
-            down = true
-            show.innerText = x + ', ' + y
+            const show = document.createElement('div')
+            div.appendChild(show)
+            show.className = 'show'
+            show.style.left = x + 'px'
+            show.style.top = y + 'px'
+            show.innerHTML = 'down'
+            shows[data.id] = show
         })
 
     input.on('move',
-        function (x, y)
+        function (x, y, data)
         {
-            if (down)
+            const show = shows[data.id]
+            if (show)
             {
-                hold.style.left = x + 'px'
-                hold.style.top = y + 'px'
-                hold.innerHTML = 'move'
+                show.style.left = x + 'px'
+                show.style.top = y + 'px'
+                show.innerHTML = 'move'
             }
-            show.innerText = x + ', ' + y
         })
 
     input.on('up',
-        function (x, y)
+        function (x, y, data)
         {
-            if (down)
+            const show = shows[data.id]
+            if (show)
             {
-                hold.innerHTML = 'up'
-                fadeUp = ease.add(new Ease.to(hold.style, {opacity: 0}, FADE_TIME, { ease: 'easeInOutSine'}))
+                show.innerHTML = 'up'
+                shows[data.id] = null
+                ease.to(show.style, { opacity: 0 }, FADE_TIME, { ease: 'easeInOutSine' })
+                    .on('done',
+                        function ()
+                        {
+                            div.removeChild(show)
+                        })
             }
-            down = false
-            show.innerText = x + ', ' + y
         })
     input.on('click',
-        function (x, y)
+        function (x, y, data)
         {
-            ease.remove(fadeClick)
-            click.innerText = 'clicked'
-            click.style.opacity = 1
-            click.style.left = x + 'px'
-            click.style.top = y + 'px'
-            fadeClick = ease.add(new Ease.to(click.style, {opacity: 0}, FADE_TIME, {ease: 'easeInOutSine'}))
+            const show = shows[data.id]
+            if (show)
+            {
+                show.innerHTML = 'clicked'
+                shows[data.id] = null
+                ease.to(show.style, { opacity: 0 }, FADE_TIME, { ease: 'easeInOutSine' })
+                    .on('done',
+                        function ()
+                        {
+                            div.removeChild(show)
+                        })
+            }
         })
 
 
-    input.on('keydown', (code, special) => { show.style.textDecoration = 'none'; key(code, special) })
-    input.on('keyup', (code, special) => { show.style.textDecoration = 'underline'; key(code, special) })
+    input.on('keydown', (code, special) => key(code, special))
+    input.on('keyup', (code, special) => key(code, special))
 }
 
 function key(code, special)
@@ -77,28 +87,21 @@ function key(code, special)
     {
         text += ' [CTRL]'
     }
-    show.innerText = text
+    keyboard.innerText = text
 }
 
 window.onload = function ()
 {
     ease = new Ease.list()
-    Update.init()
-    Update.add((elapsed) => ease.update(elapsed))
-
     div = document.getElementById('test')
-    show = document.getElementById('show')
-    hold = document.getElementById('hold')
-    click = document.getElementById('click')
-
+    keyboard = document.getElementById('keyboard')
     test()
-
-    Update.update()
+    ease.start()
 
     require('fork-me-github')('https://github.com/davidfig/input')
     require('./highlight')()
 }
-},{"..":3,"./highlight":2,"fork-me-github":5,"pixi-ease":185,"yy-update":207}],2:[function(require,module,exports){
+},{"..":3,"./highlight":2,"fork-me-github":5,"pixi-ease":185}],2:[function(require,module,exports){
 // shows the code in the demo
 module.exports = function highlight()
 {
@@ -131,26 +134,30 @@ module.exports = class Input extends EventEmitter
      * @param {boolean} [options.keys] turn on key listener
      * @param {boolean} [options.chromeDebug] ignore chrome debug keys, and force page reload with ctrl/cmd+r
      * @param {number} [options.threshold=5] maximum number of pixels to move while mouse/touch downbefore cancelling 'click'
+     * @param {boolean} [options.preventDefault] call on handle, otherwise let client handle
      *
-     * @event down(x, y, event, this) emits when touch or mouse is first down
-     * @event up(x, y, event, this) emits when touch or mouse is up or cancelled
-     * @event move(x, y, event, this) emits when touch or mouse moves (even if mouse is still up)
-     * @event keydown(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, event, this) emits when key is pressed
-     * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, event, this) emits when key is released
-     * @event click(x, y, event, this) emits when "click" for touch or mouse
+     * @event down(x, y, { input, event, id }) emits when touch or mouse is first down
+     * @event up(x, y, { input, event, id }) emits when touch or mouse is up or cancelled
+     * @event move(x, y, { input, event, id }) emits when touch or mouse moves (even if mouse is still up)
+     * @event click(x, y, { input, event, id }) emits when "click" for touch or mouse
+     *
+     * @event keydown(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, { event, input }) emits when key is pressed
+     * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, { event, input }) emits when key is released
      */
     constructor(div, options)
     {
         super()
 
-        this.options = options || {}
-        this.options.threshold = typeof this.options.threshold === 'undefined' ? 5 : this.options.threshold
+        options = options || {}
+        this.threshold = typeof options.threshold === 'undefined' ? 5 : options.threshold
+        this.chromeDebug = options.chromeDebug
+        this.preventDefault = options.preventDefault
 
-        this.touches = []
+        this.pointers = []
         this.keys = {}
         this.input = []
 
-        if (!this.options.noPointer)
+        if (!options.noPointer)
         {
             div.addEventListener('mousedown', this.mouseDown.bind(this))
             div.addEventListener('mousemove', this.mouseMove.bind(this))
@@ -163,7 +170,7 @@ module.exports = class Input extends EventEmitter
             div.addEventListener('touchcancel', this.touchEnd.bind(this))
         }
 
-        if (this.options.keys)
+        if (options.keys)
         {
             this.keysListener()
         }
@@ -177,11 +184,11 @@ module.exports = class Input extends EventEmitter
      */
     findTouch(id)
     {
-        for (let i = 0; i < this.touches.length; i++)
+        for (let i = 0; i < this.pointers.length; i++)
         {
-            if (this.touches[i].identifier === id)
+            if (this.pointers[i].identifier === id)
             {
-                return this.touches[i]
+                return this.pointers[i]
             }
         }
         return null
@@ -194,11 +201,11 @@ module.exports = class Input extends EventEmitter
      */
     removeTouch(id)
     {
-        for (let i = 0; i < this.touches.length; i++)
+        for (let i = 0; i < this.pointers.length; i++)
         {
-            if (this.touches[i].identifier === id)
+            if (this.pointers[i].identifier === id)
             {
-                this.touches.splice(i, 1)
+                this.pointers.splice(i, 1)
                 return
             }
         }
@@ -211,7 +218,10 @@ module.exports = class Input extends EventEmitter
      */
     touchStart(e)
     {
-        e.preventDefault()
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         const touches = e.changedTouches
         for (let i = 0; i < touches.length; i++)
         {
@@ -221,8 +231,8 @@ module.exports = class Input extends EventEmitter
                 x: touch.clientX,
                 y: touch.clientY
             }
-            this.touches.push(entry)
-            this.handleDown(touch.clientX, touch.clientY, e, this.touches)
+            this.pointers.push(entry)
+            this.handleDown(touch.clientX, touch.clientY, e, touch.identifier)
         }
     }
 
@@ -233,11 +243,14 @@ module.exports = class Input extends EventEmitter
      */
     touchMove(e)
     {
-        e.preventDefault()
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         for (let i = 0; i < e.changedTouches.length; i++)
         {
             const touch = e.changedTouches[i]
-            this.handleMove(touch.clientX, touch.clientY, e)
+            this.handleMove(touch.clientX, touch.clientY, e, touch.identifier)
         }
     }
 
@@ -248,7 +261,10 @@ module.exports = class Input extends EventEmitter
      */
     touchEnd(e)
     {
-        e.preventDefault()
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         for (let i = 0; i < e.changedTouches.length; i++)
         {
             const touch = e.changedTouches[i]
@@ -256,7 +272,7 @@ module.exports = class Input extends EventEmitter
             if (previous !== null)
             {
                 this.removeTouch(touch.identifier)
-                this.handleUp(touch.clientX, touch.clientY, e)
+                this.handleUp(touch.clientX, touch.clientY, e, touch.identifier)
             }
         }
     }
@@ -268,10 +284,18 @@ module.exports = class Input extends EventEmitter
      */
     mouseDown(e)
     {
-        e.preventDefault()
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
+        while (this.pointers.length)
+        {
+            this.pointers.pop()
+        }
+        this.pointers.push({id: 'mouse'})
         const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
         const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
-        this.handleDown(x, y, e)
+        this.handleDown(x, y, e, 'mouse')
     }
 
     /**
@@ -281,10 +305,13 @@ module.exports = class Input extends EventEmitter
      */
     mouseMove(e)
     {
-        e.preventDefault()
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
         const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
-        this.handleMove(x, y, e)
+        this.handleMove(x, y, e, 'mouse')
     }
 
     /**
@@ -294,15 +321,20 @@ module.exports = class Input extends EventEmitter
      */
     mouseUp(e)
     {
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
         const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
-        this.handleUp(x, y, e)
+        this.pointers.pop()
+        this.handleUp(x, y, e, 'mouse')
     }
 
-    handleDown(x, y, e)
+    handleDown(x, y, e, id)
     {
-        this.emit('down', x, y, e, this)
-        if (this.touches > 1)
+        this.emit('down', x, y, { event: e, input: this, id })
+        if (!this.threshold || this.pointers > 1)
         {
             this.start = null
         }
@@ -312,25 +344,25 @@ module.exports = class Input extends EventEmitter
         }
     }
 
-    handleUp(x, y, e)
+    handleUp(x, y, e, id)
     {
-        this.emit('up', x, y, e, this)
         if (this.start)
         {
-            this.emit('click', x, y, e, this)
+            this.emit('click', x, y, { event: e, input: this, id })
         }
+        this.emit('up', x, y, { event: e, input: this, id })
     }
 
-    handleMove(x, y, e)
+    handleMove(x, y, e, id)
     {
-        this.emit('move', x, y, e, this)
         if (this.start)
         {
-            if (Math.abs(this.start.x - x) > this.options.threshold || Math.abs(this.start.y - y) > this.options.threshold)
+            if (Math.abs(this.start.x - x) > this.threshold || Math.abs(this.start.y - y) > this.threshold)
             {
                 this.start = null
             }
         }
+        this.emit('move', x, y, { event: e, input: this, id })
     }
 
     /**
@@ -349,11 +381,15 @@ module.exports = class Input extends EventEmitter
      */
     keydown(e)
     {
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         this.keys.shift = e.shiftKey
         this.keys.meta = e.metaKey
         this.keys.ctrl = e.ctrlKey
         const code = (typeof e.which === 'number') ? e.which : e.keyCode
-        if (this.options.chromeDebug)
+        if (this.chromeDebug)
         {
             // allow chrome to open developer console
             if (this.keys.meta && code === 73)
@@ -368,7 +404,7 @@ module.exports = class Input extends EventEmitter
                 return
             }
         }
-        this.emit('keydown', code, this.keys, e)
+        this.emit('keydown', code, this.keys, { event: e, input: this })
     }
 
     /**
@@ -378,11 +414,15 @@ module.exports = class Input extends EventEmitter
      */
     keyup(e)
     {
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         this.keys.shift = e.shiftKey
         this.keys.meta = e.metaKey
         this.keys.ctrl = e.ctrlKey
         const code = (typeof e.which === 'number') ? e.which : e.keyCode
-        this.emit('keyup', code, this.keys, e)
+        this.emit('keyup', code, this.keys, { event: e, input: this })
     }
 }
 },{"eventemitter3":4}],4:[function(require,module,exports){
@@ -18111,25 +18151,36 @@ module.exports = class face extends wait
     }
 }
 },{"./wait":195,"yy-angle":204}],188:[function(require,module,exports){
-const EventEmitter = require('eventemitter3')
+const Loop = require('yy-loop')
+
+const Angle = require('./angle')
+const Face = require('./face')
+const Load = require('./load')
+const Movie = require('./movie')
+const Shake = require('./shake')
+const Target = require('./target')
+const Tint = require('./tint')
+const To = require('./to')
+const Wait = require('./wait')
 
 /** Helper list for multiple animations */
-module.exports = class List extends EventEmitter
+module.exports = class List extends Loop
 {
     /**
-     * @param {object|object[]...} any animation class
-     * @emits {done} final animation completed in the list
-     * @emits {each} each update
+     * @param [options]
+     * @param {number} [options.maxFrameTime=1000 / 60] maximum time in milliseconds for a frame
+     * @param {object} [options.pauseOnBlur] pause loop when app loses focus, start it when app regains focus
+     * @event List#done(List) final animation completed in the list
+     * @event List#each(elapsed, List) each update
      */
-    constructor()
+    constructor(options)
     {
-        super()
-        this.list = []
+        options = options || {}
+        super(options)
+        this.entries = []
         this.empty = true
-        if (arguments.length)
-        {
-            this.add(...arguments)
-        }
+
+        super.add(this.loop.bind(this))
     }
 
     /**
@@ -18144,12 +18195,12 @@ module.exports = class List extends EventEmitter
             {
                 for (let entry of arg)
                 {
-                    this.list.push(entry)
+                    this.entries.push(entry)
                 }
             }
             else
             {
-                this.list.push(arg)
+                this.entries.push(arg)
             }
         }
         this.empty = false
@@ -18163,7 +18214,7 @@ module.exports = class List extends EventEmitter
      */
     get(index)
     {
-        return this.list[index]
+        return this.entries[index]
     }
 
     /**
@@ -18201,7 +18252,7 @@ module.exports = class List extends EventEmitter
      */
     removeAll()
     {
-        this.list = []
+        this.entries = []
         this.empty = true
     }
 
@@ -18209,19 +18260,19 @@ module.exports = class List extends EventEmitter
      * @param {number} elapsed time since last tick
      * @returns {number} of active animations
      */
-    update(elapsed)
+    loop(elapsed)
     {
-        for (let i = this.list.length - 1; i >= 0; i--)
+        for (let i = this.entries.length - 1; i >= 0; i--)
         {
-            const animate = this.list[i]
+            const animate = this.entries[i]
             if (animate.update(elapsed))
             {
                 this.emit('remove', animate)
-                this.list.splice(i, 1)
+                this.entries.splice(i, 1)
             }
         }
-        this.emit('each', this)
-        if (this.list.length === 0 && !this.empty)
+        this.emit('each', elapsed, this)
+        if (this.entries.length === 0 && !this.empty)
         {
             this.emit('done', this)
             this.empty = true
@@ -18234,7 +18285,7 @@ module.exports = class List extends EventEmitter
     count()
     {
         let count = 0
-        for (let animate of this.list)
+        for (let animate of this.entries)
         {
             if (!animate.options.pause)
             {
@@ -18243,8 +18294,50 @@ module.exports = class List extends EventEmitter
         }
         return count
     }
+
+    /**
+     * starts an automatic requestAnimationFrame() loop based on yy-loop
+     * alternatively, you can call update() manually
+     * @inherited yy-loop
+     */
+    // start()
+
+    /**
+     * stops the automatic requestAnimationFrame() loop
+     * @inherited yy-loop
+     */
+    // stop()
+
+    /** helper to add to the list a new Ease.to class; see Ease.to class below for parameters */
+    to() { return this.add(new To(...arguments)) }
+
+    /** helper to add to the list a new Ease.angle class; see Ease.to class below for parameters */
+    angle() { return this.add(new Angle(...arguments)) }
+
+    /** helper to add to the list a new Ease.face class; see Ease.to class below for parameters */
+    face() { return this.add(new Face(...arguments)) }
+
+    /** helper to add to the list a new Ease.load class; see Ease.to class below for parameters */
+    load() { return this.add(new Load(...arguments)) }
+
+    /** helper to add to the list a new Ease.movie class; see Ease.to class below for parameters */
+    movie() { return this.add(new Movie(...arguments)) }
+
+    /** helper to add to the list a new Ease.shake class; see Ease.to class below for parameters */
+    shake() { return this.add(new Shake(...arguments)) }
+
+    /** helper to add to the list a new Ease.target class; see Ease.to class below for parameters */
+    target() { return this.add(new Target(...arguments)) }
+
+    /** helper to add to the list a new Ease.angle tint; see Ease.to class below for parameters */
+    tint() { return this.add(new Tint(...arguments)) }
+
+    /** helper to add to the list a new Ease.wait class; see Ease.to class below for parameters */
+    wait() { return this.add(new Wait(...arguments)) }
 }
-},{"eventemitter3":4}],189:[function(require,module,exports){
+
+/* global requestAnimationFrame, performance */
+},{"./angle":186,"./face":187,"./load":189,"./movie":190,"./shake":191,"./target":192,"./tint":193,"./to":194,"./wait":195,"yy-loop":206}],189:[function(require,module,exports){
 const wait = require('./wait')
 const to = require('./to')
 const tint = require('./tint')
@@ -18706,38 +18799,28 @@ module.exports = class tint extends wait
 },{"./wait":195,"yy-color":205}],194:[function(require,module,exports){
 const wait = require('./wait')
 
-/**
- * animate any numeric parameter of an object or array of objects
- * @examples
- *
- *    // animate sprite to (20, 20) over 1s using easeInOuTsine, and then reverse the animation
- *    new Animate.to(sprite, {x: 20, y: 20}, 1000, {reverse: true, ease: Easing.easeInOutSine})
- *
- *    // animate list of sprites to a scale over 10s after waiting 1s
- *    new Animate.to([sprite1, sprite2, sprite3], {scale: {x: 0.25, y: 0.25}}, 10000, {wait: 1000})
- */
+/** animate any numeric parameter of an object or array of objects */
 module.exports = class to extends wait
 {
     /**
      * @param {object} object to animate
-     * @param {object} goto - parameters to animate, e.g.: {alpha: 5, scale: {x, 5} rotation: Math.PI}
-     * @param {number} [duration=0] - time to run (use 0 for infinite duration--should only be used with customized easing functions)
+     * @param {object} goto - parameters to animate, e.g.: {alpha: 5, scale: {3, 5}, scale: 5, rotation: Math.PI}
+     * @param {number} duration - time to run
      * @param {object} [options]
      * @param {number} [options.wait=0] n milliseconds before starting animation (can also be used to pause animation for a length of time)
      * @param {boolean} [options.pause] start the animation paused
-     * @param {(boolean|number)} [options.repeat] true: repeat animation forever n: repeat animation n times
-     * @param {(boolean|number)} [options.reverse] true: reverse animation (if combined with repeat, then pulse) n: reverse animation n times
-     * @param {(boolean|number)} [options.continue] true: continue animation with new starting values n: continue animation n times
-     * @param {boolean} [options.orphan] delete animation if .parent of object (or first object in list) is null
+     * @param {boolean|number} [options.repeat] true: repeat animation forever n: repeat animation n times
+     * @param {boolean|number} [options.reverse] true: reverse animation (if combined with repeat, then pulse) n: reverse animation n times
+     * @param {boolean|number} [options.continue] true: continue animation with new starting values n: continue animation n times
      * @param {Function} [options.load] loads an animation using an .save() object note the * parameters below cannot be loaded and must be re-set
-     * @param {Function} [options.ease] function from easing.js (see http://easings.net for examples)*
-     * @emits {done} animation expires
-     * @emits {cancel} animation is cancelled
-     * @emits {wait} each update during a wait
-     * @emits {first} first update when animation starts
-     * @emits {each} each update while animation is running
-     * @emits {loop} when animation is repeated
-     * @emits {reverse} when animation is reversed
+     * @param {string|Function} [options.ease] name or function from easing.js (see http://easings.net for examples)
+     * @emits to:done animation expires
+     * @emits to:cancel animation is cancelled
+     * @emits to:wait each update during a wait
+     * @emits to:first first update when animation starts
+     * @emits to:each each update while animation is running
+     * @emits to:loop when animation is repeated
+     * @emits to:reverse when animation is reversed
      */
     constructor(object, goto, duration, options)
     {
@@ -18757,8 +18840,21 @@ module.exports = class to extends wait
         else
         {
             this.goto = goto
+            this.fixScale()
             this.duration = duration
             this.restart()
+        }
+    }
+
+    /**
+     * converts scale from { scale: n } to { scale: { x: n, y: n }}
+     * @private
+     */
+    fixScale()
+    {
+        if (typeof this.goto['scale'] !== 'undefined' && !Number.isNaN(this.goto['scale']))
+        {
+            this.goto['scale'] = {x: this.goto['scale'], y: this.goto['scale']}
         }
     }
 
@@ -18798,7 +18894,7 @@ module.exports = class to extends wait
         for (let key in goto)
         {
 
-            // handles keys with one additional level e.g.: goto = {scale: {x: 5, y: 5}}
+            // handles keys with one additional level e.g.: goto = {scale: {x: 5, y: 3}}
             if (isNaN(goto[key]))
             {
                 keys[i] = {key: key, children: []}
@@ -20143,7 +20239,7 @@ if ((typeof module) == 'object' && module.exports) {
   Math    // math: package containing random, pow, and seedrandom
 );
 
-},{"crypto":208}],204:[function(require,module,exports){
+},{"crypto":210}],204:[function(require,module,exports){
 // angle.js <https://github.com/davidfig/anglejs>
 // Released under MIT license <https://github.com/davidfig/angle/blob/master/LICENSE>
 // Author: David Figatner
@@ -20728,7 +20824,259 @@ class Color
 };
 
 module.exports = new Color();
-},{"yy-random":206}],206:[function(require,module,exports){
+},{"yy-random":209}],206:[function(require,module,exports){
+module.exports = require('./src/loop')
+},{"./src/loop":208}],207:[function(require,module,exports){
+const Events = require('eventemitter3')
+
+/** Entry class for Loop */
+class Entry extends Events
+{
+    /**
+     * create an entry in the update loop
+     * used by Loop
+     * @param {function} callback
+     * @param {number} [time=0] in milliseconds to call this update
+     * @param {number} [count] number of times to run this update (undefined=infinite)
+     */
+    constructor(callback, time, count)
+    {
+        super()
+        this.callback = callback
+        this.time = time
+        this.current = 0
+        this.count = count
+    }
+
+    /**
+     * run the callback if available
+     * @private
+     * @param {number} elapsed
+     */
+    _update(elapsed)
+    {
+        let result
+        if (this.callback)
+        {
+            result = this.callback(elapsed, this)
+        }
+        this.emit('each', elapsed, this)
+        if (result || (!isNaN(this.count) && !--this.count))
+        {
+            this.emit('done', this)
+            return true
+        }
+    }
+
+    /**
+     * update checks time and runs the callback
+     * @param {number} elapsed
+     * @return {boolean} whether entry is complete and may be removed from list
+     */
+    update(elapsed)
+    {
+        if (!this._pause)
+        {
+            if (this.time)
+            {
+                this.current += elapsed
+                if (this.current >= this.time)
+                {
+                    this.current -= this.time
+                    return this._update(elapsed)
+                }
+            }
+            else
+            {
+                return this._update(elapsed)
+            }
+        }
+    }
+
+    /**
+     * @type {boolean} pause this entry
+     */
+    set pause(value)
+    {
+        this._pause = value
+    }
+    get pause()
+    {
+        return this._pause
+    }
+}
+
+module.exports = Entry
+},{"eventemitter3":4}],208:[function(require,module,exports){
+/* Copyright (c) 2017 YOPEY YOPEY LLC */
+
+const Events = require('eventemitter3')
+
+class Loop extends Events
+{
+    /**
+     * basic loop support
+     * note: the default is to stop the loop when app loses focus
+     * @param {object} [options]
+     * @param {number} [options.maxFrameTime=1000 / 60] maximum time in milliseconds for a frame
+     * @param {object} [options.pauseOnBlur] pause loop when app loses focus, start it when app regains focus
+     *
+     * @event each(elapsed, Loop)
+     * @event start(Loop)
+     * @event stop(Loop)
+     */
+    constructor(options)
+    {
+        super()
+        options = options || {}
+        this.maxFrameTime = options.maxFrameTime || 1000 / 60
+        if (options.pauseOnBlur)
+        {
+            window.addEventListener('blur', this.stopBlur.bind(this))
+            window.addEventListener('focus', this.startBlur.bind(this))
+        }
+        this.list = []
+    }
+
+    /**
+     * start requestAnimationFrame() loop
+     * @return {Loop} this
+     */
+    start()
+    {
+        if (!this.running)
+        {
+            this.running = performance.now()
+            this.update()
+            this.emit('start', this)
+        }
+        return this
+    }
+
+    /**
+     * handler for focus event
+     * @private
+     */
+    startBlur()
+    {
+        if (this.blurred)
+        {
+            this.start()
+        }
+    }
+
+    /**
+     * handler for blur event
+     * @private
+     */
+    stopBlur()
+    {
+        if (this.running)
+        {
+            this.stop()
+            this.blurred = true
+        }
+    }
+
+    /**
+     * stop loop
+     * @return {Loop} this
+     */
+    stop()
+    {
+        this.running = false
+        this.blurred = false
+        this.emit('stop', this)
+        return this
+    }
+
+    /**
+     * loop through updates
+     */
+    update()
+    {
+        if (this.running)
+        {
+            const now = performance.now()
+            let elapsed = now - this.running
+            elapsed = elapsed > this.maxFrameTime ? this.maxFrameTime : elapsed
+            for (let entry of this.list)
+            {
+                if (entry.update(elapsed))
+                {
+                    this.remove(entry)
+                }
+            }
+            this.emit('each', elapsed, this)
+            requestAnimationFrame(this.update.bind(this))
+        }
+    }
+
+    /**
+     * add a callback to the update loop
+     * @param {function} callback
+     * @param {number} [time=0] in milliseconds to call this update
+     * @param {number} [count=0] number of times to run this update (0=infinite)
+     * @return {object} entry - used to remove or change the parameters of the update
+     */
+    add(callback, time, count)
+    {
+        const entry = new Entry(callback, time, count)
+        this.list.push(entry)
+        return entry
+    }
+
+    /**
+     * remove a callback from the loop
+     * @param {object} entry - returned by add()
+     */
+    remove(entry)
+    {
+        const index = this.list.indexOf(entry)
+        if (index !== -1)
+        {
+            this.list.splice(index, 1)
+        }
+    }
+
+    /**
+     * removes all callbacks from the loop
+     */
+    removeAll()
+    {
+        this.list = []
+    }
+
+    /**
+     * @type {number} count of all animations
+     */
+    get count()
+    {
+        return this.list.length
+    }
+
+    /**
+     * @type {number} count of running animations
+     */
+    get countRunning()
+    {
+        let count = 0
+        for (let entry of this.list)
+        {
+            if (!entry.pause)
+            {
+                count++
+            }
+        }
+        return count
+    }
+}
+
+const Entry = require('./entry')
+
+Loop.entry = Entry
+module.exports = Loop
+},{"./entry":207,"eventemitter3":4}],209:[function(require,module,exports){
 // yy-random
 // by David Figatner
 // MIT license
@@ -21154,441 +21502,6 @@ class Random
 }
 
 module.exports = new Random()
-},{"seedrandom":196}],207:[function(require,module,exports){
-/**
- * @file update.js
- * @author David Figatner
- * @license MIT
- * @copyright YOPEY YOPEY LLC 2016
- * {@link https://github.com/davidfig/update}
- */
-
-// placeholder for yy-debug ({@link http://github.com/davidfig/debug})
-let Debug;
-
-let FPS = 60;
-let _list = [];
-let _pause = false;
-let _pauseRegistrations = [];
-let _pauseElapsed = 0;
-
-let _startTime = 0;
-let _frameNumber = 0;
-let _lastUpdate = 0;
-let _lastFPS = '--';
-
-let _tolerance = 1;
-
-let _maxChange = 100;
-
-let _panels = {fps: null, meter: null, percent: null};
-let _percentageList = [];
-
-let _updateOff;
-let _debug;
-
-// this is the number of entries to use in a rolling average to smooth the debug percentages
-let _rollingAverage = 500;
-
-let _updateRemove;
-let _lastCount;
-let _onLoop;
-
-/**
- * must call init() before using Update
- * @param {object} [options]
- * @param {object} [options.Debug] pass Debug from github.com/davidfig/debug
- * @param {boolean|string} [options.count] - show debug counts (can supply side for panel, e.g., 'topleft')
- * @param {boolean|string} [options.percent] - show debug percentage
- * @param {boolean|string} [options.FPS] - show debug FPS
- * @param {function} [options.onLoop] call at end of update loop
- * @param {boolean} [options.noPause] do not pause update loop when window loses focus
- */
-function init(options)
-{
-    options = options || {};
-    if (!options.noPause)
-    {
-        window.addEventListener('blur', pauseGame);
-        window.addEventListener('focus', resumeGame);
-    }
-    if (options.debug)
-    {
-        Debug = options.debug;
-        _debug = {count: options.count, percent: options.percent, FPS: options.FPS};
-        _debugInit();
-    }
-    _onLoop = options.onLoop;
-}
-
-/**
- * register functions to call after Update pauses or resumes
- * @param {Function} pause
- * @param {Function} resume
- */
-function registerPause(pause, resume)
-{
-    _pauseRegistrations.push({ pause: pause, resume: resume});
-}
-
-/**
- * pauses all updates
- */
-function pauseGame()
-{
-    if (_pause !== true)
-    {
-        _pause = true;
-        _pauseElapsed = performance.now() - _lastUpdate;
-        _updateOff = false;
-        if (_debug)
-        {
-            _debugPause();
-        }
-        for (var i = 0; i < _pauseRegistrations.length; i++)
-        {
-            _pauseRegistrations[i].pause();
-        }
-    }
-}
-
-/**
- * resumes all updates
- */
-function resumeGame()
-{
-    if (_pause === true)
-    {
-        _pause = false;
-        _lastUpdate = performance.now() - _pauseElapsed;
-        if (_debug && _debug.FPS)
-        {
-            _startTime = 0;
-            _frameNumber = 0;
-            _lastUpdate = 0;
-            _lastFPS = '--';
-        }
-        for (let i = 0; i < _pauseRegistrations.length; i++)
-        {
-            _pauseRegistrations[i].resume();
-        }
-        if (_updateOff === true)
-        {
-            update();
-        }
-    }
-}
-
-/**
- * loops through all updates
- * @param {number} elapsed in milliseconds
- * @private
- */
-function _updateAll(elapsed)
-{
-    _updateRemove = [];
-    let i = 0, _i = _list.length;
-    let other = 0, count = 0;
-    while (i < _i)
-    {
-        const entry = _list[i++];
-        if (entry.pause)
-        {
-            continue;
-        }
-        if (entry.duration !== 0)
-        {
-            entry.elapsed += elapsed;
-            if (entry.elapsed < entry.duration)
-            {
-                if (_debug && _debug.percent && entry.options.percent)
-                {
-                    const change = _percentageList[entry.options.percent];
-                    change.amounts[change.current++] = 0;
-                    if (change.current === _rollingAverage)
-                    {
-                        change.current = 0;
-                    }
-                }
-                continue;
-            }
-            else
-            {
-                entry.elapsed = 0;
-            }
-        }
-        let start, result;
-        if (_debug && _debug.percent)
-        {
-            start = performance.now();
-            result = entry.callback(elapsed, entry.options);
-            var current = performance.now() - start;
-            if (entry.options.percent)
-            {
-                const change = _percentageList[entry.options.percent];
-                change.amounts[change.current++] = current;
-                if (change.current === _rollingAverage)
-                {
-                    change.current = 0;
-                }
-            }
-            else
-            {
-                other += current;
-            }
-        }
-        else
-        {
-            result = entry.callback(elapsed, entry.options);
-        }
-        if (entry.once || result)
-        {
-            i--;
-            _i--;
-            _list.splice(i, 1);
-        }
-        count++;
-    }
-    if (_debug)
-    {
-        if (_debug.count && _lastCount !== count)
-        {
-            Debug.one(count + ' updates', {panel: _panels.count});
-            _lastCount = count;
-        }
-        if (_debug.percent)
-        {
-            _debugPercent(other);
-        }
-    }
-    while (_updateRemove.length)
-    {
-        _remove(_updateRemove.pop());
-    }
-    _updateRemove = null;
-}
-
-/**
- * adds a function to the update loop
- * @param {Function} funct
- * @param {object} [options]
- * @param {number} [options.time=0] in milliseconds to call this function
- * @param {number} [options.FPS] - this replaces options.time and calls the function at the desired FPS
- * @param {boolean} [options.once=false] - call only once and then remove from update queue
- * @param {string} [options.percent] - name to track the percentage in the debug panel
- */
-function add(funct, options)
-{
-    options = options || {};
-    const time = options.time || (options.FPS ? 1000 / options.FPS : 0);
-    const update = {callback: funct, options: options, duration: time, elapsed: 0, once: options.once, pause: false};
-    _list.push(update);
-    if (_debug && options.percent)
-    {
-        _percentageList[options.percent] = {current: 0, amounts: []};
-        let test = '';
-        for (let key in _percentageList)
-        {
-            test += key + ': --%<br>';
-        }
-        Debug.one(test, {panel: _panels.percent});
-        Debug.resize();
-    }
-    return update;
-}
-
-/**
- * removes all updates and clears the percentage list
- */
-function clear()
-{
-    _list = [];
-    if (_debug && _debug.percent)
-    {
-        _percentageList = {};
-        _percentageList['Other'] = {current: 0, amounts: []};
-        Debug.resize();
-    }
-}
-
-/**
- * removes an update from the loop
- * @param {object} update - object returned by add()
- */
-function remove(update)
-{
-    if (update)
-    {
-        if (_updateRemove)
-        {
-            _updateRemove.push(update);
-        }
-        else
-        {
-            _remove(update);
-        }
-    }
-}
-
-/**
- * removes the update from the loop
- * this does not check whether the update loop is active; use remove() instead
- * @param {object} update - object returned by add()
- * @private
- */
-function _remove(update)
-{
-    const index = _list.indexOf(update);
-    if (index !== -1)
-    {
-        _list.splice(index, 1);
-    }
-}
-
-/**
- * starts the update loop
- */
-function update()
-{
-    if (_pause === true)
-    {
-        _updateOff = true;
-        return;
-    }
-    const current = performance.now();
-    let elapsed;
-    if (_lastUpdate === 0)
-    {
-        elapsed = 0;
-    }
-    else
-    {
-        elapsed = current - _lastUpdate;
-        elapsed = elapsed > _maxChange ? _maxChange : elapsed;
-    }
-    _updateAll(elapsed);
-    _lastUpdate = current;
-    if (_debug && _debug.FPS)
-    {
-        _debugUpdate(current);
-    }
-    if (_onLoop)
-    {
-        _onLoop();
-    }
-    requestAnimationFrame(update);
-}
-
-/**
- * adds debug panels (uses github.com/davidfig/debug)
- * @private
- */
-function _debugInit()
-{
-    if (_debug.FPS)
-    {
-        _panels.fps = Debug.add('FPS', {text: '-- FPS'});
-        _panels.meter = Debug.addMeter('panel');
-    }
-    if (_debug.count)
-    {
-        _panels.count = Debug.add('Updates', {text: '0 updates'});
-    }
-    if (_debug.percent)
-    {
-        _panels.percent = Debug.add('percentages', {style: {textAlign: 'right'}});
-        _percentageList['Other'] = {current: 0, amounts: []};
-    }
-}
-
-/**
- * pause debug
- * @private
- */
-function _debugPause()
-{
-    if (_debug.FPS)
-    {
-        Debug.one('-- FPS', {panel: _panels.fps});
-    }
-}
-
-/**
- * update debug panels
- * @param {number} current time
- * @private
- */
-function _debugUpdate(current)
-{
-    _frameNumber++;
-    const currentTime = performance.now() - _startTime;
-
-    // skip the first half second to get rid of garbage
-    if (currentTime > 500)
-    {
-        if (_startTime !== 0)
-        {
-            _lastFPS = Math.floor(_frameNumber / (currentTime / 1000));
-            if (_lastFPS >= FPS - _tolerance && _lastFPS <= FPS + _tolerance)
-            {
-                _lastFPS = FPS;
-            }
-        }
-        _startTime = performance.now();
-        _frameNumber = 0;
-    }
-    Debug.one(_lastFPS + ' FPS', {panel: _panels.fps});
-    const time = performance.now() - current;
-    const expected = (16.7 - time) / 16.7;
-    Debug.meter(expected, {panel: _panels.meter});
-}
-
-/**
- * update percentage panel
- * @param {number} other time
- * @private
- */
-function _debugPercent(other)
-{
-    const change = _percentageList['Other'];
-    change.amounts[change.current++] = other;
-    change.current %= _rollingAverage;
-    let updates = [], all = 0;
-    for (let name in _percentageList)
-    {
-        const change = _percentageList[name];
-        let total = 0;
-        for (let i = 0; i < change.amounts.length; i++)
-        {
-            total += change.amounts[i];
-        }
-        total /= change.amounts.length;
-        all += total;
-        updates.push({name: name, total: total});
-    }
-    let result = '';
-    for (let i = 1; i < updates.length; i++)
-    {
-        const update = updates[i];
-        result += update.name + ': ' + Math.round(update.total / all * 100) + '%<br>';
-    }
-    const update = updates[0];
-    result += update.name + ': ' + (all === 0 ? '100' : Math.round(update.total / all * 100)) + '%<br>';
-    Debug.one(result, {panel: _panels.percent});
-}
-
-module.exports = {
-    init,
-    registerPause,
-    pauseGame,
-    resumeGame,
-    add,
-    clear,
-    remove,
-    update
-};
-
-/* globals performance, requestAnimationFrame */
-},{}],208:[function(require,module,exports){
+},{"seedrandom":196}],210:[function(require,module,exports){
 
 },{}]},{},[1]);

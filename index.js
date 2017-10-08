@@ -13,26 +13,30 @@ module.exports = class Input extends EventEmitter
      * @param {boolean} [options.keys] turn on key listener
      * @param {boolean} [options.chromeDebug] ignore chrome debug keys, and force page reload with ctrl/cmd+r
      * @param {number} [options.threshold=5] maximum number of pixels to move while mouse/touch downbefore cancelling 'click'
+     * @param {boolean} [options.preventDefault] call on handle, otherwise let client handle
      *
-     * @event down(x, y, event, this) emits when touch or mouse is first down
-     * @event up(x, y, event, this) emits when touch or mouse is up or cancelled
-     * @event move(x, y, event, this) emits when touch or mouse moves (even if mouse is still up)
-     * @event keydown(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, event, this) emits when key is pressed
-     * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, event, this) emits when key is released
-     * @event click(x, y, event, this) emits when "click" for touch or mouse
+     * @event down(x, y, { input, event, id }) emits when touch or mouse is first down
+     * @event up(x, y, { input, event, id }) emits when touch or mouse is up or cancelled
+     * @event move(x, y, { input, event, id }) emits when touch or mouse moves (even if mouse is still up)
+     * @event click(x, y, { input, event, id }) emits when "click" for touch or mouse
+     *
+     * @event keydown(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, { event, input }) emits when key is pressed
+     * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, { event, input }) emits when key is released
      */
     constructor(div, options)
     {
         super()
 
-        this.options = options || {}
-        this.options.threshold = typeof this.options.threshold === 'undefined' ? 5 : this.options.threshold
+        options = options || {}
+        this.threshold = typeof options.threshold === 'undefined' ? 5 : options.threshold
+        this.chromeDebug = options.chromeDebug
+        this.preventDefault = options.preventDefault
 
-        this.touches = []
+        this.pointers = []
         this.keys = {}
         this.input = []
 
-        if (!this.options.noPointer)
+        if (!options.noPointer)
         {
             div.addEventListener('mousedown', this.mouseDown.bind(this))
             div.addEventListener('mousemove', this.mouseMove.bind(this))
@@ -45,7 +49,7 @@ module.exports = class Input extends EventEmitter
             div.addEventListener('touchcancel', this.touchEnd.bind(this))
         }
 
-        if (this.options.keys)
+        if (options.keys)
         {
             this.keysListener()
         }
@@ -59,11 +63,11 @@ module.exports = class Input extends EventEmitter
      */
     findTouch(id)
     {
-        for (let i = 0; i < this.touches.length; i++)
+        for (let i = 0; i < this.pointers.length; i++)
         {
-            if (this.touches[i].identifier === id)
+            if (this.pointers[i].identifier === id)
             {
-                return this.touches[i]
+                return this.pointers[i]
             }
         }
         return null
@@ -76,11 +80,11 @@ module.exports = class Input extends EventEmitter
      */
     removeTouch(id)
     {
-        for (let i = 0; i < this.touches.length; i++)
+        for (let i = 0; i < this.pointers.length; i++)
         {
-            if (this.touches[i].identifier === id)
+            if (this.pointers[i].identifier === id)
             {
-                this.touches.splice(i, 1)
+                this.pointers.splice(i, 1)
                 return
             }
         }
@@ -93,7 +97,10 @@ module.exports = class Input extends EventEmitter
      */
     touchStart(e)
     {
-        e.preventDefault()
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         const touches = e.changedTouches
         for (let i = 0; i < touches.length; i++)
         {
@@ -103,8 +110,8 @@ module.exports = class Input extends EventEmitter
                 x: touch.clientX,
                 y: touch.clientY
             }
-            this.touches.push(entry)
-            this.handleDown(touch.clientX, touch.clientY, e, this.touches)
+            this.pointers.push(entry)
+            this.handleDown(touch.clientX, touch.clientY, e, touch.identifier)
         }
     }
 
@@ -115,11 +122,14 @@ module.exports = class Input extends EventEmitter
      */
     touchMove(e)
     {
-        e.preventDefault()
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         for (let i = 0; i < e.changedTouches.length; i++)
         {
             const touch = e.changedTouches[i]
-            this.handleMove(touch.clientX, touch.clientY, e)
+            this.handleMove(touch.clientX, touch.clientY, e, touch.identifier)
         }
     }
 
@@ -130,7 +140,10 @@ module.exports = class Input extends EventEmitter
      */
     touchEnd(e)
     {
-        e.preventDefault()
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         for (let i = 0; i < e.changedTouches.length; i++)
         {
             const touch = e.changedTouches[i]
@@ -138,7 +151,7 @@ module.exports = class Input extends EventEmitter
             if (previous !== null)
             {
                 this.removeTouch(touch.identifier)
-                this.handleUp(touch.clientX, touch.clientY, e)
+                this.handleUp(touch.clientX, touch.clientY, e, touch.identifier)
             }
         }
     }
@@ -150,10 +163,18 @@ module.exports = class Input extends EventEmitter
      */
     mouseDown(e)
     {
-        e.preventDefault()
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
+        while (this.pointers.length)
+        {
+            this.pointers.pop()
+        }
+        this.pointers.push({id: 'mouse'})
         const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
         const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
-        this.handleDown(x, y, e)
+        this.handleDown(x, y, e, 'mouse')
     }
 
     /**
@@ -163,10 +184,13 @@ module.exports = class Input extends EventEmitter
      */
     mouseMove(e)
     {
-        e.preventDefault()
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
         const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
-        this.handleMove(x, y, e)
+        this.handleMove(x, y, e, 'mouse')
     }
 
     /**
@@ -176,15 +200,20 @@ module.exports = class Input extends EventEmitter
      */
     mouseUp(e)
     {
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
         const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
-        this.handleUp(x, y, e)
+        this.pointers.pop()
+        this.handleUp(x, y, e, 'mouse')
     }
 
-    handleDown(x, y, e)
+    handleDown(x, y, e, id)
     {
-        this.emit('down', x, y, e, this)
-        if (this.touches > 1)
+        this.emit('down', x, y, { event: e, input: this, id })
+        if (!this.threshold || this.pointers > 1)
         {
             this.start = null
         }
@@ -194,25 +223,25 @@ module.exports = class Input extends EventEmitter
         }
     }
 
-    handleUp(x, y, e)
+    handleUp(x, y, e, id)
     {
-        this.emit('up', x, y, e, this)
         if (this.start)
         {
-            this.emit('click', x, y, e, this)
+            this.emit('click', x, y, { event: e, input: this, id })
         }
+        this.emit('up', x, y, { event: e, input: this, id })
     }
 
-    handleMove(x, y, e)
+    handleMove(x, y, e, id)
     {
-        this.emit('move', x, y, e, this)
         if (this.start)
         {
-            if (Math.abs(this.start.x - x) > this.options.threshold || Math.abs(this.start.y - y) > this.options.threshold)
+            if (Math.abs(this.start.x - x) > this.threshold || Math.abs(this.start.y - y) > this.threshold)
             {
                 this.start = null
             }
         }
+        this.emit('move', x, y, { event: e, input: this, id })
     }
 
     /**
@@ -231,11 +260,15 @@ module.exports = class Input extends EventEmitter
      */
     keydown(e)
     {
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         this.keys.shift = e.shiftKey
         this.keys.meta = e.metaKey
         this.keys.ctrl = e.ctrlKey
         const code = (typeof e.which === 'number') ? e.which : e.keyCode
-        if (this.options.chromeDebug)
+        if (this.chromeDebug)
         {
             // allow chrome to open developer console
             if (this.keys.meta && code === 73)
@@ -250,7 +283,7 @@ module.exports = class Input extends EventEmitter
                 return
             }
         }
-        this.emit('keydown', code, this.keys, e)
+        this.emit('keydown', code, this.keys, { event: e, input: this })
     }
 
     /**
@@ -260,10 +293,14 @@ module.exports = class Input extends EventEmitter
      */
     keyup(e)
     {
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         this.keys.shift = e.shiftKey
         this.keys.meta = e.metaKey
         this.keys.ctrl = e.ctrlKey
         const code = (typeof e.which === 'number') ? e.which : e.keyCode
-        this.emit('keyup', code, this.keys, e)
+        this.emit('keyup', code, this.keys, { event: e, input: this })
     }
 }
