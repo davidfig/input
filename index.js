@@ -58,6 +58,15 @@ module.exports = class Input extends EventEmitter
     }
 
     /**
+     * remove all listeners
+     */
+    destroy()
+    {
+        this.removePointers()
+        this.removeKeyboard()
+    }
+
+    /**
      * turns on pointer listeners (on by default); can be used after removePointers()
      */
     addPointers()

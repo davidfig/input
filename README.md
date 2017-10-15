@@ -47,6 +47,11 @@ https://davidfig.github.io/input/
     constructor(options)
 
     /**
+     * remove all listeners
+     */
+    destroy()
+
+    /**
      * turns on pointer listeners (on by default); can be used after removePointers()
      */
     addPointers()
