@@ -30,7 +30,7 @@ https://davidfig.github.io/input/
      *
      * @param {object} [options]
      * @param {HTMLElement} [options.div=document] object to attach listener to
-     * @param {boolean} [options.noPointer] turns off mouse/touch handlers
+     * @param {boolean} [options.noPointers] turns off mouse/touch/pen handlers
      * @param {boolean} [options.keys] turn on key listener
      * @param {boolean} [options.chromeDebug] ignore chrome debug keys, and force page reload with ctrl/cmd+r
      * @param {number} [options.threshold=5] maximum number of pixels to move while mouse/touch downbefore cancelling 'click'
@@ -45,6 +45,26 @@ https://davidfig.github.io/input/
      * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, { event, input }) emits when key is released
      */
     constructor(options)
+
+    /**
+     * turns on pointer listeners (on by default); can be used after removePointers()
+     */
+    addPointers()
+
+    /**
+     * remove pointers listener
+     */
+    removePointers()
+
+    /**
+     * turns on keyboard listener (off by default); can be used after removeKeyboard()
+     */
+    addKeyboard()
+
+    /**
+     * removes keyboard listener
+     */
+    removeKeyboard()
 ```
 ## License  
 MIT License  

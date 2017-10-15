@@ -3,13 +3,13 @@ const Ease = require('pixi-ease')
 
 const Input = require('..')
 
-let div, ease, keyboard, shows = []
+let div, button, ease, keyboard, shows = []
 
 const FADE_TIME = 1500
 
 function test()
 {
-    const input = new Input({ keys: true, chromeDebug: true, preventDefault: true })
+    const input = new Input({ div, keys: true, chromeDebug: true, preventDefault: true })
     input.on('down',
         function (x, y, data)
         {
@@ -70,6 +70,23 @@ function test()
 
     input.on('keydown', (code, special) => key(code, special))
     input.on('keyup', (code, special) => key(code, special))
+
+    button.onclick = function (e)
+    {
+        if (button.innerText === 'Remove Listeners')
+        {
+            button.innerText = 'Add Listeners'
+            input.removePointers()
+            input.removeKeyboard()
+        }
+        else
+        {
+            button.innerText = 'Remove Listeners'
+            input.addPointers()
+            input.addKeyboard()
+        }
+        e.stopPropagation()
+    }
 }
 
 function key(code, special)
@@ -95,6 +112,7 @@ window.onload = function ()
     ease = new Ease.list()
     div = document.getElementById('test')
     keyboard = document.getElementById('keyboard')
+    button = document.getElementById('button')
     test()
     ease.start()
 
@@ -130,7 +148,7 @@ module.exports = class Input extends EventEmitter
      *
      * @param {object} [options]
      * @param {HTMLElement} [options.div=document] object to attach listener to
-     * @param {boolean} [options.noPointer] turns off mouse/touch handlers
+     * @param {boolean} [options.noPointers] turns off mouse/touch/pen handlers
      * @param {boolean} [options.keys] turn on key listener
      * @param {boolean} [options.chromeDebug] ignore chrome debug keys, and force page reload with ctrl/cmd+r
      * @param {number} [options.threshold=5] maximum number of pixels to move while mouse/touch downbefore cancelling 'click'
@@ -156,23 +174,93 @@ module.exports = class Input extends EventEmitter
         this.keys = {}
         this.input = []
 
-        if (!options.noPointer)
+        this.div = options.div || document
+        this.options = options
+        this.callbacks = [
+            this.mouseDown.bind(this),
+            this.mouseMove.bind(this),
+            this.mouseUp.bind(this), // 2
+            this.touchStart.bind(this),
+            this.touchMove.bind(this),
+            this.touchEnd.bind(this),
+            this.keydown.bind(this), // 6
+            this.keyup.bind(this)
+        ]
+        if (!options.noPointers)
         {
-            const div = options.div || document
-            div.addEventListener('mousedown', this.mouseDown.bind(this))
-            div.addEventListener('mousemove', this.mouseMove.bind(this))
-            div.addEventListener('mouseup', this.mouseUp.bind(this))
-            div.addEventListener('mouseout', this.mouseUp.bind(this))
-
-            div.addEventListener('touchstart', this.touchStart.bind(this))
-            div.addEventListener('touchmove', this.touchMove.bind(this))
-            div.addEventListener('touchend', this.touchEnd.bind(this))
-            div.addEventListener('touchcancel', this.touchEnd.bind(this))
+            this.addPointers()
         }
-
         if (options.keys)
         {
-            this.keysListener()
+            this.addKeyboard()
+        }
+    }
+
+    /**
+     * turns on pointer listeners (on by default); can be used after removePointers()
+     */
+    addPointers()
+    {
+        if (!this.listeningPointer)
+        {
+            const div = this.div
+            div.addEventListener('mousedown', this.callbacks[0])
+            div.addEventListener('mousemove', this.callbacks[1])
+            div.addEventListener('mouseup', this.callbacks[2])
+            div.addEventListener('mouseout', this.callbacks[2])
+
+            div.addEventListener('touchstart', this.callbacks[3])
+            div.addEventListener('touchmove', this.callbacks[4])
+            div.addEventListener('touchend', this.callbacks[5])
+            div.addEventListener('touchcancel', this.callbacks[5])
+            this.listeningPointer = true
+        }
+    }
+
+    /**
+     * remove pointers listener
+     */
+    removePointers()
+    {
+        if (this.listeningPointer)
+        {
+            const div = this.div
+            div.removeEventListener('mousedown', this.callbacks[0])
+            div.removeEventListener('mousemove', this.callbacks[1])
+            div.removeEventListener('mouseup', this.callbacks[2])
+            div.removeEventListener('mouseout', this.callbacks[2])
+
+            div.removeEventListener('touchstart', this.callbacks[3])
+            div.removeEventListener('touchmove', this.callbacks[4])
+            div.removeEventListener('touchend', this.callbacks[5])
+            div.removeEventListener('touchcancel', this.callbacks[5])
+            this.listeningPointer = false
+        }
+    }
+
+    /**
+     * turns on keyboard listener (off by default); can be used after removeKeyboard()
+     */
+    addKeyboard()
+    {
+        if (!this.listeningKeyboard)
+        {
+            document.addEventListener('keydown', this.callbacks[6])
+            document.addEventListener('keyup', this.callbacks[7])
+            this.listeningKeyboard = true
+        }
+    }
+
+    /**
+     * removes keyboard listener
+     */
+    removeKeyboard()
+    {
+        if (this.listeningKeyboard)
+        {
+            document.removeEventListener('keydown', this.callbacks[6])
+            document.removeEventListener('keyup', this.callbacks[7])
+            this.listeningKeyboard = false
         }
     }
 
@@ -371,8 +459,6 @@ module.exports = class Input extends EventEmitter
      */
     keysListener()
     {
-        document.addEventListener('keydown', this.keydown.bind(this))
-        document.addEventListener('keyup', this.keyup.bind(this))
     }
 
     /**
@@ -381,10 +467,6 @@ module.exports = class Input extends EventEmitter
      */
     keydown(e)
     {
-        if (this.preventDefault)
-        {
-            e.preventDefault()
-        }
         this.keys.shift = e.shiftKey
         this.keys.meta = e.metaKey
         this.keys.ctrl = e.ctrlKey
@@ -403,6 +485,10 @@ module.exports = class Input extends EventEmitter
                 window.location.reload()
                 return
             }
+        }
+        if (this.preventDefault)
+        {
+            e.preventDefault()
         }
         this.emit('keydown', code, this.keys, { event: e, input: this })
     }
