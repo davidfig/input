@@ -7,8 +7,8 @@ module.exports = class Input extends EventEmitter
     /**
      * basic input support for touch, mouse, and keyboard
      *
-     * @param {HTMLElement} object to attach listener to
      * @param {object} [options]
+     * @param {HTMLElement} [options.div=document] object to attach listener to
      * @param {boolean} [options.noPointer] turns off mouse/touch handlers
      * @param {boolean} [options.keys] turn on key listener
      * @param {boolean} [options.chromeDebug] ignore chrome debug keys, and force page reload with ctrl/cmd+r
@@ -23,10 +23,9 @@ module.exports = class Input extends EventEmitter
      * @event keydown(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, { event, input }) emits when key is pressed
      * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, { event, input }) emits when key is released
      */
-    constructor(div, options)
+    constructor(options)
     {
         super()
-
         options = options || {}
         this.threshold = typeof options.threshold === 'undefined' ? 5 : options.threshold
         this.chromeDebug = options.chromeDebug
@@ -38,6 +37,7 @@ module.exports = class Input extends EventEmitter
 
         if (!options.noPointer)
         {
+            const div = options.div || document
             div.addEventListener('mousedown', this.mouseDown.bind(this))
             div.addEventListener('mousemove', this.mouseMove.bind(this))
             div.addEventListener('mouseup', this.mouseUp.bind(this))

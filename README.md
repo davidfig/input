@@ -28,8 +28,8 @@ https://davidfig.github.io/input/
     /**
      * basic input support for touch, mouse, and keyboard
      *
-     * @param {HTMLElement} object to attach listener to
      * @param {object} [options]
+     * @param {HTMLElement} [options.div=document] object to attach listener to
      * @param {boolean} [options.noPointer] turns off mouse/touch handlers
      * @param {boolean} [options.keys] turn on key listener
      * @param {boolean} [options.chromeDebug] ignore chrome debug keys, and force page reload with ctrl/cmd+r
@@ -44,7 +44,7 @@ https://davidfig.github.io/input/
      * @event keydown(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, { event, input }) emits when key is pressed
      * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, { event, input }) emits when key is released
      */
-    constructor(div, options)
+    constructor(options)
 ```
 ## License  
 MIT License  
