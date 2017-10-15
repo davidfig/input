@@ -74,6 +74,12 @@
             transform: translate(-50%, -50%);
         }
 
+        #button {
+            position: absolute;
+            left: 1em;
+            top: 1em;
+        }
+
     </style>
     <script src="index.js"></script>
 </head>
@@ -83,6 +89,7 @@
         <div class="instructions">move mouse, touch screen, or press keys with or without modifiers</div>
         <div id="keyboard"></div>
     </div>
+    <button type="button" id="button">Remove Listeners</button>
     <div class="title">Example for <a href="https://github.com/davidfig/input/">github.com/davidfig/input/</a></div>
     <pre><code class="javascript" id="code"></code></pre>
 </body>

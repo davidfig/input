@@ -1,6 +1,6 @@
 {
     "name": "yy-input",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "description": "basic input support for touch, mouse, and keyboard",
     "main": "index.js",
     "directories": {

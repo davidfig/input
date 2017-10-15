@@ -2,13 +2,13 @@ const Ease = require('pixi-ease')
 
 const Input = require('..')
 
-let div, ease, keyboard, shows = []
+let div, button, ease, keyboard, shows = []
 
 const FADE_TIME = 1500
 
 function test()
 {
-    const input = new Input({ keys: true, chromeDebug: true, preventDefault: true })
+    const input = new Input({ div, keys: true, chromeDebug: true, preventDefault: true })
     input.on('down',
         function (x, y, data)
         {
@@ -69,6 +69,23 @@ function test()
 
     input.on('keydown', (code, special) => key(code, special))
     input.on('keyup', (code, special) => key(code, special))
+
+    button.onclick = function (e)
+    {
+        if (button.innerText === 'Remove Listeners')
+        {
+            button.innerText = 'Add Listeners'
+            input.removePointers()
+            input.removeKeyboard()
+        }
+        else
+        {
+            button.innerText = 'Remove Listeners'
+            input.addPointers()
+            input.addKeyboard()
+        }
+        e.stopPropagation()
+    }
 }
 
 function key(code, special)
@@ -94,6 +111,7 @@ window.onload = function ()
     ease = new Ease.list()
     div = document.getElementById('test')
     keyboard = document.getElementById('keyboard')
+    button = document.getElementById('button')
     test()
     ease.start()
 
