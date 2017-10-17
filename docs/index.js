@@ -3,7 +3,7 @@ const Ease = require('pixi-ease')
 
 const Input = require('..')
 
-let div, button, ease, keyboard, shows = []
+let div, button, ease, keyboard, wheel, shows = []
 
 const FADE_TIME = 1500
 
@@ -67,7 +67,17 @@ function test()
             }
         })
 
-
+    input.on('wheel',
+        function (dx, dy, dz, data)
+        {
+            wheel.style.opacity = 1
+            wheel.style.left = data.x + 'px'
+            wheel.style.top = data.y + 'px'
+            wheel.innerText = dx + ', ' + dy + ', ' + dz
+            ease.remove(wheel.easing)
+            wheel.easing = ease.to(wheel.style, { opacity: 0 }, FADE_TIME, { ease: 'easeInOutSine' })
+            data.event.preventDefault()
+        })
     input.on('keydown', (code, special) => key(code, special))
     input.on('keyup', (code, special) => key(code, special))
 
@@ -113,6 +123,7 @@ window.onload = function ()
     div = document.getElementById('test')
     keyboard = document.getElementById('keyboard')
     button = document.getElementById('button')
+    wheel = document.getElementById('wheel')
     test()
     ease.start()
 
@@ -158,6 +169,7 @@ module.exports = class Input extends EventEmitter
      * @event up(x, y, { input, event, id }) emits when touch or mouse is up or cancelled
      * @event move(x, y, { input, event, id }) emits when touch or mouse moves (even if mouse is still up)
      * @event click(x, y, { input, event, id }) emits when "click" for touch or mouse
+     * @event wheel(dx, dy, dz, { event, id, x, y }) emits when "wheel" scroll for mouse
      *
      * @event keydown(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, { event, input }) emits when key is pressed
      * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, { event, input }) emits when key is released
@@ -184,7 +196,8 @@ module.exports = class Input extends EventEmitter
             this.touchMove.bind(this),
             this.touchEnd.bind(this),
             this.keydown.bind(this), // 6
-            this.keyup.bind(this)
+            this.keyup.bind(this),
+            this.wheel.bind(this) // 8
         ]
         if (!options.noPointers)
         {
@@ -217,6 +230,7 @@ module.exports = class Input extends EventEmitter
             div.addEventListener('mousemove', this.callbacks[1])
             div.addEventListener('mouseup', this.callbacks[2])
             div.addEventListener('mouseout', this.callbacks[2])
+            div.addEventListener('wheel', this.callbacks[8])
 
             div.addEventListener('touchstart', this.callbacks[3])
             div.addEventListener('touchmove', this.callbacks[4])
@@ -238,6 +252,7 @@ module.exports = class Input extends EventEmitter
             div.removeEventListener('mousemove', this.callbacks[1])
             div.removeEventListener('mouseup', this.callbacks[2])
             div.removeEventListener('mouseout', this.callbacks[2])
+            div.removeEventListener('wheel', this.callbacks[8])
 
             div.removeEventListener('touchstart', this.callbacks[3])
             div.removeEventListener('touchmove', this.callbacks[4])
@@ -460,6 +475,11 @@ module.exports = class Input extends EventEmitter
             }
         }
         this.emit('move', x, y, { event: e, input: this, id })
+    }
+
+    wheel(e)
+    {
+        this.emit('wheel', e.deltaX, e.deltaY, e.deltaZ, { event: e, id: 'mouse', x: e.clientX, y: e.clientY })
     }
 
     /**

@@ -40,6 +40,7 @@ https://davidfig.github.io/input/
      * @event up(x, y, { input, event, id }) emits when touch or mouse is up or cancelled
      * @event move(x, y, { input, event, id }) emits when touch or mouse moves (even if mouse is still up)
      * @event click(x, y, { input, event, id }) emits when "click" for touch or mouse
+     * @event wheel(dx, dy, dz, { event, id, x, y }) emits when "wheel" scroll for mouse
      *
      * @event keydown(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, { event, input }) emits when key is pressed
      * @event keyup(keyCode:number, {shift:boolean, meta:boolean, ctrl: boolean}, { event, input }) emits when key is released

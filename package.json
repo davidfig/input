@@ -1,6 +1,6 @@
 {
     "name": "yy-input",
-    "version": "0.7.0",
+    "version": "0.8.0",
     "description": "basic input support for touch, mouse, and keyboard",
     "main": "index.js",
     "directories": {
@@ -19,7 +19,9 @@
     "keywords": [
         "input",
         "mouse",
-        "keyboard"
+        "keyboard",
+        "wheel",
+        "mouse wheel"
     ],
     "author": "David Figatner",
     "license": "MIT",

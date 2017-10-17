@@ -2,7 +2,7 @@ const Ease = require('pixi-ease')
 
 const Input = require('..')
 
-let div, button, ease, keyboard, shows = []
+let div, button, ease, keyboard, wheel, shows = []
 
 const FADE_TIME = 1500
 
@@ -66,7 +66,17 @@ function test()
             }
         })
 
-
+    input.on('wheel',
+        function (dx, dy, dz, data)
+        {
+            wheel.style.opacity = 1
+            wheel.style.left = data.x + 'px'
+            wheel.style.top = data.y + 'px'
+            wheel.innerText = dx + ', ' + dy + ', ' + dz
+            ease.remove(wheel.easing)
+            wheel.easing = ease.to(wheel.style, { opacity: 0 }, FADE_TIME, { ease: 'easeInOutSine' })
+            data.event.preventDefault()
+        })
     input.on('keydown', (code, special) => key(code, special))
     input.on('keyup', (code, special) => key(code, special))
 
@@ -112,6 +122,7 @@ window.onload = function ()
     div = document.getElementById('test')
     keyboard = document.getElementById('keyboard')
     button = document.getElementById('button')
+    wheel = document.getElementById('wheel')
     test()
     ease.start()
 
