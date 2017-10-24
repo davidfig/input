@@ -8,7 +8,7 @@ const FADE_TIME = 1500
 
 function test()
 {
-    const input = new Input({ div, keys: true, chromeDebug: true, preventDefault: true })
+    const input = new Input({ div, chromeDebug: true, preventDefault: true })
     input.on('down',
         function (x, y, data)
         {

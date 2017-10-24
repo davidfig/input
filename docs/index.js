@@ -9,7 +9,7 @@ const FADE_TIME = 1500
 
 function test()
 {
-    const input = new Input({ div, keys: true, chromeDebug: true, preventDefault: true })
+    const input = new Input({ div, chromeDebug: true, preventDefault: true })
     input.on('down',
         function (x, y, data)
         {
@@ -159,8 +159,8 @@ module.exports = class Input extends EventEmitter
      *
      * @param {object} [options]
      * @param {HTMLElement} [options.div=document] object to attach listener to
-     * @param {boolean} [options.noPointers] turns off mouse/touch/pen handlers
-     * @param {boolean} [options.keys] turn on key listener
+     * @param {boolean} [options.noPointers] turns off mouse/touch/pen listeners
+     * @param {boolean} [options.noKeyboard] turns off key listener
      * @param {boolean} [options.chromeDebug] ignore chrome debug keys, and force page reload with ctrl/cmd+r
      * @param {number} [options.threshold=5] maximum number of pixels to move while mouse/touch downbefore cancelling 'click'
      * @param {boolean} [options.preventDefault] call on handle, otherwise let client handle
@@ -203,7 +203,7 @@ module.exports = class Input extends EventEmitter
         {
             this.addPointers()
         }
-        if (options.keys)
+        if (!options.noKeyboard)
         {
             this.addKeyboard()
         }
