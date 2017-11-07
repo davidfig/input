@@ -310,6 +310,7 @@ module.exports = class Input extends EventEmitter
     {
         if (this.start)
         {
+            this.start = null
             this.emit('click', x, y, { event: e, input: this, id })
         }
         this.emit('up', x, y, { event: e, input: this, id })
