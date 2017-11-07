@@ -24,7 +24,7 @@ I used this in all my games, so I decided to centralize and share it. This is a 
 https://davidfig.github.io/input/
 
 ## API
-```
+```js
     /**
      * basic input support for touch, mouse, and keyboard
      *
