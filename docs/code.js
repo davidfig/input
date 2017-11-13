@@ -98,6 +98,16 @@ function test()
     }
 }
 
+function test2()
+{
+    const test = document.getElementById('test2')
+    const inner = document.getElementById('test2-box')
+    const input = new Input(test, { noKeyboard: true })
+console.log(inner.offsetLeft, inner.offsetTop, inner.offsetWidth, inner.offsetHeight)
+    input.clampDown(inner.offsetLeft, inner.offsetTop, inner.offsetWidth + test.offsetLeft, inner.offsetHeight + test.offsetTop)
+    input.on('down', () => console.log('hi'))
+}
+
 function key(code, special)
 {
     let text = String.fromCharCode(code) + ' (' + code + ')'
@@ -124,6 +134,7 @@ window.onload = function ()
     button = document.getElementById('button')
     wheel = document.getElementById('wheel')
     test()
+    test2()
     ease.start()
 
     require('fork-me-github')('https://github.com/davidfig/input')

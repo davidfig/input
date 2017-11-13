@@ -55,7 +55,7 @@
         .instructions {
             color: lightcyan;
             position: absolute;
-            bottom: 0
+            bottom: 0.25em
         }
 
         .show {
@@ -79,6 +79,23 @@
             left: 1em;
             top: 1em;
         }
+
+        #test2 {
+            position: relative;
+            width: 100%;
+            height: 6em;
+            background-color: greenyellow;
+            padding: 0.25em;
+        }
+
+        #test2-box {
+            position: absolute;
+            right: 2em;
+            top: 1em;
+            height: 4.5em;
+            width: 5em;
+            background-color: pink;
+        }
     </style>
     <script src="index.js"></script>
 </head>
@@ -90,6 +107,10 @@
         <div id="wheel"></div>
     </div>
     <button type="button" id="button">Remove Listeners</button>
+    <div id="test2">
+        This test box only captures inputs inside pink box
+        <div id="test2-box"></div>
+    </div>
     <div class="title">Example for <a href="https://github.com/davidfig/input/">github.com/davidfig/input/</a></div>
     <pre><code class="javascript" id="code"></code></pre>
 </body>

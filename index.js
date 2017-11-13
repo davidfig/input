@@ -188,10 +188,19 @@ module.exports = class Input extends EventEmitter
         for (let i = 0; i < touches.length; i++)
         {
             const touch = touches[i]
+            const x = touch.clientX
+            const y = touch.clientY
+            if (this.clamp)
+            {
+                if (this.outsideClamp(x, y))
+                {
+                    continue
+                }
+            }
             const entry = {
                 identifier: touch.identifier,
-                x: touch.clientX,
-                y: touch.clientY
+                x,
+                y
             }
             this.pointers.push(entry)
             this.handleDown(touch.clientX, touch.clientY, e, touch.identifier)
@@ -212,6 +221,10 @@ module.exports = class Input extends EventEmitter
         for (let i = 0; i < e.changedTouches.length; i++)
         {
             const touch = e.changedTouches[i]
+            if (this.clamp && !this.findTouch(touch.identifier))
+            {
+                continue
+            }
             this.handleMove(touch.clientX, touch.clientY, e, touch.identifier)
         }
     }
@@ -257,7 +270,10 @@ module.exports = class Input extends EventEmitter
         this.pointers.push({id: 'mouse'})
         const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
         const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
-        this.handleDown(x, y, e, 'mouse')
+        if (!this.clamp || !this.outsideClamp(x, y))
+        {
+            this.handleDown(x, y, e, 'mouse')
+        }
     }
 
     /**
@@ -389,5 +405,20 @@ module.exports = class Input extends EventEmitter
         this.keys.ctrl = e.ctrlKey
         const code = (typeof e.which === 'number') ? e.which : e.keyCode
         this.emit('keyup', code, this.keys, { event: e, input: this })
+    }
+
+    /**
+     * clamp screen to only accept pointers in rectangle in the down event
+     * @param {number} x
+     * @param {number} y
+     */
+    clampDown(x, y, width, height)
+    {
+        this.clamp = { x, y, width, height }
+    }
+
+    outsideClamp(x, y)
+    {
+        return x < this.clamp.x || x > this.clamp.x + this.clamp.width || y < this.clamp.y || y > this.clamp.y + this.clamp.height
     }
 }
