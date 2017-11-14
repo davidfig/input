@@ -103,7 +103,7 @@ function test2()
     const test = document.getElementById('test2')
     const inner = document.getElementById('test2-box')
     const input = new Input(test, { noKeyboard: true })
-console.log(inner.offsetLeft, inner.offsetTop, inner.offsetWidth, inner.offsetHeight)
+    console.log(inner.offsetLeft, inner.offsetTop, inner.offsetWidth, inner.offsetHeight)
     input.clampDown(inner.offsetLeft, inner.offsetTop, inner.offsetWidth + test.offsetLeft, inner.offsetHeight + test.offsetTop)
     input.on('down', () => console.log('hi'))
 }
