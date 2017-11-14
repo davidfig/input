@@ -134,7 +134,7 @@ window.onload = function ()
     button = document.getElementById('button')
     wheel = document.getElementById('wheel')
     test()
-    test2()
+    // test2()
     ease.start()
 
     require('fork-me-github')('https://github.com/davidfig/input')

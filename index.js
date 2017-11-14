@@ -346,6 +346,10 @@ module.exports = class Input extends EventEmitter
 
     wheel(e)
     {
+        if (this.preventDefault)
+        {
+            e.preventDefault()
+        }
         this.emit('wheel', e.deltaX, e.deltaY, e.deltaZ, { event: e, id: 'mouse', x: e.clientX, y: e.clientY })
     }
 
