@@ -3,7 +3,7 @@ basic input support for touch, mouse, and keyboard
 
 ## rationale
 
-I used this in all my games, so I decided to centralize and share it. This is a very simple class that emits events after a touch, mouse, or (optionally) keyboard event. The events are tied to an HTMLElement.
+I used this in all my games, so I decided to centralize and share it. This is a very simple class that emits events after a touch, mouse, or keyboard event. The events are tied to an HTMLElement.
 
 ## installation
 
