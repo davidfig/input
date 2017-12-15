@@ -302,7 +302,7 @@ module.exports = class Input extends EventEmitter
     handleDown(x, y, e, id)
     {
         this.emit('down', x, y, { event: e, input: this, id })
-        if (!this.threshold || this.pointers > 1)
+        if (!this.threshold || this.pointers.length > 1)
         {
             this.start = null
         }
