@@ -302,19 +302,12 @@ module.exports = class Input extends EventEmitter
     handleDown(x, y, e, id)
     {
         this.emit('down', x, y, { event: e, input: this, id })
-        if (!this.threshold || this.pointers.length > 1)
-        {
-            this.start = null
-        }
-        else
-        {
-            this.start = { x, y }
-        }
+        this.start = { x, y }
     }
 
     handleUp(x, y, e, id)
     {
-        if (this.start)
+        if (this.start && this.pointers.length === 1)
         {
             this.start = null
             this.emit('click', x, y, { event: e, input: this, id })
