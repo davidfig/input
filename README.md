@@ -72,12 +72,6 @@ https://davidfig.github.io/input/
      */
     removeKeyboard()
 
-    /**
-     * clamp screen to only accept pointers in rectangle in the down event
-     * @param {number} x
-     * @param {number} y
-     */
-    clampDown(x, y, width, height)
 ```
 ## License  
 MIT License  
