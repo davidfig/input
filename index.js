@@ -295,8 +295,8 @@ module.exports = class Input extends EventEmitter
         }
         const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
         const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
-        this.pointers.pop()
         this.handleUp(x, y, e, 'mouse')
+        this.pointers.pop()
     }
 
     handleDown(x, y, e, id)
