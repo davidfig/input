@@ -456,8 +456,8 @@ module.exports = class Input extends EventEmitter
         }
         const x = window.navigator.msPointerEnabled ? e.offsetX : e.clientX
         const y = window.navigator.msPointerEnabled ? e.offsetY : e.clientY
-        this.pointers.pop()
         this.handleUp(x, y, e, 'mouse')
+        this.pointers.pop()
     }
 
     handleDown(x, y, e, id)
@@ -555,6 +555,7 @@ module.exports = class Input extends EventEmitter
         this.emit('keyup', code, this.keys, { event: e, input: this })
     }
 }
+
 },{"eventemitter3":4}],4:[function(require,module,exports){
 'use strict';
 
